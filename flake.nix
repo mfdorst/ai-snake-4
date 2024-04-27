@@ -1,21 +1,28 @@
 {
-  inputs = { nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"; };
+  inputs = {
+    nixpkgs.url = "nixpkgs/nixos-unstable";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+  };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, rust-overlay }:
     let
-      allSystems = [
+      forAllSystems = nixpkgs.lib.genAttrs [
         "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
       ];
-
-      forAllSystems = fn:
-        nixpkgs.lib.genAttrs allSystems
-        (system: fn { pkgs = import nixpkgs { inherit system; }; });
-
     in {
-      devShells = forAllSystems ({ pkgs }: {
-        default = with pkgs; pkgs.mkShell rec {
+      devShells = forAllSystems (system: let
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs { inherit system overlays; };
+      in with pkgs; {
+        default = mkShell rec {
+          name = "bevy";
           nativeBuildInputs = [
             pkg-config
+            rust-bin.stable.latest.default
           ];
           buildInputs = [
             udev alsa-lib vulkan-loader
