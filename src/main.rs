@@ -4,7 +4,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_play_area, setup_clear_color))
-        .add_systems(Update, on_resize_system)
+        .add_systems(Update, resize_play_area)
         .run();
 }
 
@@ -33,7 +33,7 @@ fn setup_play_area(mut cmd: Commands) {
     ));
 }
 
-fn on_resize_system(
+fn resize_play_area(
     mut q: Query<&mut Sprite, With<PlayArea>>,
     mut resize_reader: EventReader<WindowResized>,
 ) {
