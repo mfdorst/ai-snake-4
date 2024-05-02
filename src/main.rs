@@ -10,14 +10,14 @@ const GRID_WIDTH: u8 = 32;
 struct PlayArea(f32, f32);
 
 #[derive(Component)]
-struct Cell;
+struct Player;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_play_area, setup_clear_color))
-        .add_systems(Startup, spawn_grid_cells_in_corners.after(setup_play_area))
-        .add_systems(Update, resize_play_area)
+        .add_systems(Startup, spawn_player.after(setup_play_area))
+        .add_systems(Update, (resize_play_area, move_player))
         .run();
 }
 
@@ -63,11 +63,14 @@ fn get_play_area(window_width: f32, window_height: f32) -> PlayArea {
     }
 }
 
-fn spawn_cell(cmd: &mut Commands, play_area: &PlayArea, x: u8, y: u8) {
+fn spawn_player(mut cmd: Commands, q: Query<&PlayArea>) {
+    let play_area = q.single();
+    let (x, y) = (16, 9);
     let cell_width = play_area.0 / GRID_WIDTH as f32;
     let cell_height = play_area.1 / GRID_HEIGHT as f32;
     let x_pos = -play_area.0 / 2. + (x as f32 + 0.5) * cell_width;
     let y_pos = -play_area.1 / 2. + (y as f32 + 0.5) * cell_height;
+
     cmd.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -81,12 +84,31 @@ fn spawn_cell(cmd: &mut Commands, play_area: &PlayArea, x: u8, y: u8) {
             },
             ..default()
         },
-        Cell,
+        Player,
     ));
 }
 
-fn spawn_grid_cells_in_corners(mut cmd: Commands, play_area_q: Query<&PlayArea>) {
+fn move_player(
+    input: Res<ButtonInput<KeyCode>>,
+    mut xform_q: Query<&mut Transform, With<Player>>,
+    play_area_q: Query<&PlayArea>,
+) {
+    let (delta_x, delta_y) = if input.just_pressed(KeyCode::KeyW) {
+        (0., 1.)
+    } else if input.just_pressed(KeyCode::KeyA) {
+        (-1., 0.)
+    } else if input.just_pressed(KeyCode::KeyS) {
+        (0., -1.)
+    } else if input.just_pressed(KeyCode::KeyD) {
+        (1., 0.)
+    } else {
+        return;
+    };
     let play_area = play_area_q.single();
-    spawn_cell(&mut cmd, play_area, 0, 0);
-    spawn_cell(&mut cmd, play_area, 31, 17);
+    let cell_width = play_area.0 / GRID_WIDTH as f32;
+    let cell_height = play_area.1 / GRID_HEIGHT as f32;
+
+    let mut xform = xform_q.single_mut();
+    xform.translation.x += delta_x * cell_width;
+    xform.translation.y += delta_y * cell_height;
 }
