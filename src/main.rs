@@ -12,7 +12,10 @@ struct SnakeHead;
 struct SnakeBody(Vec<Entity>);
 
 #[derive(Component)]
-struct Direction(Direction2d);
+struct CurrentDirection(Direction2d);
+
+#[derive(Component)]
+struct NextDirection(Direction2d);
 
 #[derive(Resource)]
 struct MoveTimer(Timer);
@@ -29,13 +32,7 @@ fn main() {
                 spawn_snake,
             ),
         )
-        .add_systems(
-            Update,
-            (
-                change_head_direction,
-                move_snake,
-            ),
-        )
+        .add_systems(Update, (change_head_direction, move_snake))
         .insert_resource(MoveTimer(Timer::from_seconds(
             1. / STEPS_PER_SECOND,
             TimerMode::Repeating,
@@ -89,7 +86,8 @@ fn spawn_snake(mut cmd: Commands) {
                 ..default()
             },
             SnakeHead,
-            Direction(Direction2d::X),
+            CurrentDirection(Direction2d::X),
+            NextDirection(Direction2d::X),
         ))
         .id(),
     );
@@ -108,25 +106,32 @@ fn spawn_snake(mut cmd: Commands) {
 
 fn change_head_direction(
     input: Res<ButtonInput<KeyCode>>,
-    mut q: Query<&mut Direction, With<SnakeHead>>,
+    mut q: Query<(&CurrentDirection, &mut NextDirection), With<SnakeHead>>,
 ) {
-    let mut direction = q.single_mut();
-
-    if input.just_pressed(KeyCode::KeyW) {
-        direction.0 = Direction2d::Y;
+    let desired = if input.just_pressed(KeyCode::KeyW) {
+        Direction2d::Y
     } else if input.just_pressed(KeyCode::KeyA) {
-        direction.0 = Direction2d::NEG_X;
+        Direction2d::NEG_X
     } else if input.just_pressed(KeyCode::KeyS) {
-        direction.0 = Direction2d::NEG_Y;
+        Direction2d::NEG_Y
     } else if input.just_pressed(KeyCode::KeyD) {
-        direction.0 = Direction2d::X;
+        Direction2d::X
+    } else {
+        return;
+    };
+
+    let (current, mut next) = q.single_mut();
+
+    // Don't allow 180's
+    if desired != -current.0 {
+        next.0 = desired;
     }
 }
 
 fn move_snake(
     mut transform_q: Query<&mut Transform>,
     mut timer: ResMut<MoveTimer>,
-    direction_q: Query<&Direction, With<SnakeHead>>,
+    mut direction_q: Query<(&mut CurrentDirection, &NextDirection), With<SnakeHead>>,
     body: Res<SnakeBody>,
     time: Res<Time>,
 ) {
@@ -146,7 +151,8 @@ fn move_snake(
 
         // Move the head in the direciton of movement
         let mut head_transform = transform_q.get_mut(body.0[0]).unwrap();
-        let head_direction = direction_q.get(body.0[0]).unwrap();
-        head_transform.translation += head_direction.0.extend(0.);
+        let (mut current_direction, next_direction) = direction_q.single_mut();
+        current_direction.0 = next_direction.0;
+        head_transform.translation += current_direction.0.extend(0.);
     }
 }
