@@ -3,9 +3,13 @@ use bevy::{prelude::*, render::camera::ScalingMode};
 const GRID_WIDTH: f32 = 32.;
 const GRID_HEIGHT: f32 = 18.;
 const STEPS_PER_SECOND: f32 = 4.;
+const SNAKE_LENGTH: usize = 5;
 
 #[derive(Component)]
-struct Player;
+struct SnakeHead;
+
+#[derive(Resource)]
+struct SnakeBody(Vec<Entity>);
 
 #[derive(Component)]
 struct Direction(Direction2d);
@@ -22,10 +26,16 @@ fn main() {
                 setup_camera,
                 setup_play_area,
                 setup_clear_color,
-                spawn_player,
+                spawn_snake,
             ),
         )
-        .add_systems(Update, (change_player_direction, move_player))
+        .add_systems(
+            Update,
+            (
+                change_head_direction,
+                move_snake,
+            ),
+        )
         .insert_resource(MoveTimer(Timer::from_seconds(
             1. / STEPS_PER_SECOND,
             TimerMode::Repeating,
@@ -58,24 +68,47 @@ fn setup_play_area(mut cmd: Commands) {
     });
 }
 
-fn spawn_player(mut cmd: Commands) {
-    cmd.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::WHITE,
-                custom_size: Some(Vec2::new(1., 1.)),
+fn spawn_snake(mut cmd: Commands) {
+    let sprite = Sprite {
+        color: Color::WHITE,
+        custom_size: Some(Vec2::ONE),
+        ..default()
+    };
+    let transforms: Vec<_> = (0..SNAKE_LENGTH)
+        .into_iter()
+        .map(|i| Transform::from_xyz(GRID_WIDTH / 2. - i as f32, GRID_HEIGHT / 2., 0.))
+        .collect();
+
+    let mut body = vec![];
+
+    body.push(
+        cmd.spawn((
+            SpriteBundle {
+                sprite: sprite.clone(),
+                transform: transforms[0],
                 ..default()
             },
-            ..default()
-        },
-        Player,
-        Direction(Direction2d::X),
-    ));
+            SnakeHead,
+            Direction(Direction2d::X),
+        ))
+        .id(),
+    );
+    for transform in transforms.into_iter().skip(1) {
+        body.push(
+            cmd.spawn(SpriteBundle {
+                sprite: sprite.clone(),
+                transform,
+                ..default()
+            })
+            .id(),
+        );
+    }
+    cmd.insert_resource(SnakeBody(body));
 }
 
-fn change_player_direction(
+fn change_head_direction(
     input: Res<ButtonInput<KeyCode>>,
-    mut q: Query<&mut Direction, With<Player>>,
+    mut q: Query<&mut Direction, With<SnakeHead>>,
 ) {
     let mut direction = q.single_mut();
 
@@ -90,15 +123,30 @@ fn change_player_direction(
     }
 }
 
-fn move_player(
-    mut q: Query<(&mut Transform, &Direction), With<Player>>,
+fn move_snake(
+    mut transform_q: Query<&mut Transform>,
     mut timer: ResMut<MoveTimer>,
+    direction_q: Query<&Direction, With<SnakeHead>>,
+    body: Res<SnakeBody>,
     time: Res<Time>,
 ) {
     timer.0.tick(time.delta());
 
     if timer.0.finished() {
-        let (mut transform, direction) = q.single_mut();
-        transform.translation += direction.0.extend(0.);
+        // Iterate over body segments in pairs from tail to head so positions are not written
+        // before they are read
+        let body_iter = body.0.iter().rev().zip(body.0.iter().rev().skip(1));
+
+        // Set the position of each segment to the position of the next segment
+        for (&current, &next) in body_iter {
+            let next_transform = transform_q.get(next).unwrap().clone();
+            let mut current_transform = transform_q.get_mut(current).unwrap();
+            *current_transform = next_transform;
+        }
+
+        // Move the head in the direciton of movement
+        let mut head_transform = transform_q.get_mut(body.0[0]).unwrap();
+        let head_direction = direction_q.get(body.0[0]).unwrap();
+        head_transform.translation += head_direction.0.extend(0.);
     }
 }
