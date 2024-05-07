@@ -33,7 +33,7 @@ fn main() {
                 setup_camera,
                 setup_clear_color,
                 setup_play_area,
-                spawn_food,
+                setup_food,
                 spawn_snake,
             ),
         )
@@ -108,7 +108,8 @@ fn check_body_collision(
 }
 
 fn check_food_collision(
-    food_transform_q: Query<&Transform, With<Food>>,
+    mut cmd: Commands,
+    food_q: Query<(Entity, &Transform), With<Food>>,
     head_transform_q: Query<&Transform, With<SnakeHead>>,
     next_direction_q: Query<&NextDirection>,
     timer: Res<MoveTimer>,
@@ -120,9 +121,10 @@ fn check_food_collision(
     let next_direction = next_direction_q.single();
     let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
 
-    for food_transform in &food_transform_q {
+    for (food_entity, food_transform) in &food_q {
         if next_head_pos == food_transform.translation {
-            println!("Yum!");
+            cmd.entity(food_entity).despawn();
+            spawn_food(&mut cmd);
         }
     }
 }
@@ -176,6 +178,10 @@ fn setup_clear_color(mut cmd: Commands) {
     cmd.insert_resource(ClearColor(Color::GRAY));
 }
 
+fn setup_food(mut cmd: Commands) {
+    spawn_food(&mut cmd);
+}
+
 fn setup_play_area(mut cmd: Commands) {
     cmd.spawn(SpriteBundle {
         sprite: Sprite {
@@ -189,7 +195,7 @@ fn setup_play_area(mut cmd: Commands) {
     });
 }
 
-fn spawn_food(mut cmd: Commands) {
+fn spawn_food(cmd: &mut Commands) {
     let mut rng = rand::thread_rng();
     let x = rng.gen_range(0..GRID_WIDTH as i32);
     let y = rng.gen_range(0..GRID_HEIGHT as i32);
