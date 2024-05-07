@@ -1,15 +1,9 @@
 use bevy::{prelude::*, render::camera::ScalingMode};
 
-const GRID_WIDTH: f32 = 32.;
 const GRID_HEIGHT: f32 = 18.;
-const STEPS_PER_SECOND: f32 = 4.;
+const GRID_WIDTH: f32 = 32.;
 const SNAKE_LENGTH: usize = 5;
-
-#[derive(Component)]
-struct SnakeHead;
-
-#[derive(Resource)]
-struct SnakeBody(Vec<Entity>);
+const STEPS_PER_SECOND: f32 = 4.;
 
 #[derive(Component)]
 struct CurrentDirection(Direction2d);
@@ -17,8 +11,14 @@ struct CurrentDirection(Direction2d);
 #[derive(Component)]
 struct NextDirection(Direction2d);
 
+#[derive(Component)]
+struct SnakeHead;
+
 #[derive(Resource)]
 struct MoveTimer(Timer);
+
+#[derive(Resource)]
+struct SnakeBody(Vec<Entity>);
 
 fn main() {
     App::new()
@@ -27,22 +27,22 @@ fn main() {
             Startup,
             (
                 setup_camera,
-                setup_play_area,
                 setup_clear_color,
+                setup_play_area,
                 spawn_snake,
             ),
         )
         .add_systems(
             Update,
             (
-                tick_move_timer,
                 change_head_direction,
-                check_wall_collision
-                    .after(tick_move_timer)
-                    .before(move_snake),
+                tick_move_timer,
                 check_body_collision
-                    .after(tick_move_timer)
-                    .before(move_snake),
+                    .before(move_snake)
+                    .after(tick_move_timer),
+                check_wall_collision
+                    .before(move_snake)
+                    .after(tick_move_timer),
                 move_snake
                     .after(tick_move_timer)
                     .after(change_head_direction),
@@ -53,6 +53,89 @@ fn main() {
             TimerMode::Repeating,
         )))
         .run();
+}
+
+fn change_head_direction(
+    mut q: Query<(&CurrentDirection, &mut NextDirection), With<SnakeHead>>,
+    input: Res<ButtonInput<KeyCode>>,
+) {
+    let desired = if input.just_pressed(KeyCode::KeyW) {
+        Direction2d::Y
+    } else if input.just_pressed(KeyCode::KeyA) {
+        Direction2d::NEG_X
+    } else if input.just_pressed(KeyCode::KeyS) {
+        Direction2d::NEG_Y
+    } else if input.just_pressed(KeyCode::KeyD) {
+        Direction2d::X
+    } else {
+        return;
+    };
+
+    let (current, mut next) = q.single_mut();
+
+    // Don't allow 180's
+    if desired != -current.0 {
+        next.0 = desired;
+    }
+}
+
+fn check_body_collision(
+    mut timer: ResMut<MoveTimer>,
+    next_direction_q: Query<&NextDirection>,
+    transform_q: Query<&Transform>,
+    body: Res<SnakeBody>,
+) {
+    if !timer.0.finished() {
+        return;
+    }
+    let head_transform = transform_q.get(body.0[0]).unwrap();
+    let next_direction = next_direction_q.single();
+    let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
+
+    for &segment in body.0.iter().skip(1) {
+        let body_transform = transform_q.get(segment).unwrap();
+        if next_head_pos == body_transform.translation {
+            timer.0.pause();
+            timer.0.reset();
+        }
+    }
+}
+
+fn check_wall_collision(
+    mut timer: ResMut<MoveTimer>,
+    q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
+) {
+    if !timer.0.finished() {
+        return;
+    }
+    let (transform, direction) = q.single();
+    let t = transform.translation + direction.0.extend(0.);
+
+    if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
+        timer.0.pause();
+        timer.0.reset();
+    }
+}
+
+fn move_snake(
+    mut direction_q: Query<(&mut CurrentDirection, &NextDirection), With<SnakeHead>>,
+    mut transform_q: Query<&mut Transform>,
+    body: Res<SnakeBody>,
+    timer: Res<MoveTimer>,
+) {
+    if timer.0.finished() {
+        let body_iter = body.0.iter().rev().zip(body.0.iter().rev().skip(1));
+        for (&current, &next) in body_iter {
+            let next_transform = transform_q.get(next).unwrap().clone();
+            let mut current_transform = transform_q.get_mut(current).unwrap();
+            *current_transform = next_transform;
+        }
+
+        let mut head_transform = transform_q.get_mut(body.0[0]).unwrap();
+        let (mut current_direction, next_direction) = direction_q.single_mut();
+        current_direction.0 = next_direction.0;
+        head_transform.translation += current_direction.0.extend(0.);
+    }
 }
 
 fn setup_camera(mut cmd: Commands) {
@@ -119,89 +202,6 @@ fn spawn_snake(mut cmd: Commands) {
     cmd.insert_resource(SnakeBody(body));
 }
 
-fn change_head_direction(
-    input: Res<ButtonInput<KeyCode>>,
-    mut q: Query<(&CurrentDirection, &mut NextDirection), With<SnakeHead>>,
-) {
-    let desired = if input.just_pressed(KeyCode::KeyW) {
-        Direction2d::Y
-    } else if input.just_pressed(KeyCode::KeyA) {
-        Direction2d::NEG_X
-    } else if input.just_pressed(KeyCode::KeyS) {
-        Direction2d::NEG_Y
-    } else if input.just_pressed(KeyCode::KeyD) {
-        Direction2d::X
-    } else {
-        return;
-    };
-
-    let (current, mut next) = q.single_mut();
-
-    // Don't allow 180's
-    if desired != -current.0 {
-        next.0 = desired;
-    }
-}
-
 fn tick_move_timer(mut timer: ResMut<MoveTimer>, time: Res<Time>) {
     timer.0.tick(time.delta());
-}
-
-fn move_snake(
-    mut transform_q: Query<&mut Transform>,
-    timer: Res<MoveTimer>,
-    mut direction_q: Query<(&mut CurrentDirection, &NextDirection), With<SnakeHead>>,
-    body: Res<SnakeBody>,
-) {
-    if timer.0.finished() {
-        let body_iter = body.0.iter().rev().zip(body.0.iter().rev().skip(1));
-        for (&current, &next) in body_iter {
-            let next_transform = transform_q.get(next).unwrap().clone();
-            let mut current_transform = transform_q.get_mut(current).unwrap();
-            *current_transform = next_transform;
-        }
-
-        let mut head_transform = transform_q.get_mut(body.0[0]).unwrap();
-        let (mut current_direction, next_direction) = direction_q.single_mut();
-        current_direction.0 = next_direction.0;
-        head_transform.translation += current_direction.0.extend(0.);
-    }
-}
-
-fn check_wall_collision(
-    q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
-    mut timer: ResMut<MoveTimer>,
-) {
-    if !timer.0.finished() {
-        return;
-    }
-    let (transform, direction) = q.single();
-    let t = transform.translation + direction.0.extend(0.);
-
-    if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
-        timer.0.pause();
-        timer.0.reset();
-    }
-}
-
-fn check_body_collision(
-    transform_q: Query<&Transform>,
-    next_direction_q: Query<&NextDirection>,
-    body: Res<SnakeBody>,
-    mut timer: ResMut<MoveTimer>,
-) {
-    if !timer.0.finished() {
-        return;
-    }
-    let head_transform = transform_q.get(body.0[0]).unwrap();
-    let next_direction = next_direction_q.single();
-    let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
-
-    for &segment in body.0.iter().skip(1) {
-        let body_transform = transform_q.get(segment).unwrap();
-        if next_head_pos == body_transform.translation {
-            timer.0.pause();
-            timer.0.reset();
-        }
-    }
 }
