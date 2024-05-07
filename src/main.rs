@@ -1,9 +1,10 @@
 use bevy::{prelude::*, render::camera::ScalingMode};
+use rand::Rng;
 
-const GRID_HEIGHT: f32 = 18.;
-const GRID_WIDTH: f32 = 32.;
+const GRID_HEIGHT: f32 = 36.;
+const GRID_WIDTH: f32 = 64.;
 const SNAKE_LENGTH: usize = 5;
-const STEPS_PER_SECOND: f32 = 4.;
+const STEPS_PER_SECOND: f32 = 8.;
 
 #[derive(Component)]
 struct CurrentDirection(Direction2d);
@@ -20,6 +21,9 @@ struct MoveTimer(Timer);
 #[derive(Resource)]
 struct SnakeBody(Vec<Entity>);
 
+#[derive(Component)]
+struct Food;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -29,6 +33,7 @@ fn main() {
                 setup_camera,
                 setup_clear_color,
                 setup_play_area,
+                spawn_food,
                 spawn_snake,
             ),
         )
@@ -161,6 +166,23 @@ fn setup_play_area(mut cmd: Commands) {
         transform: Transform::from_xyz(GRID_WIDTH / 2. - 0.5, GRID_HEIGHT / 2. - 0.5, 0.),
         ..default()
     });
+}
+
+fn spawn_food(mut cmd: Commands) {
+    let mut rng = rand::thread_rng();
+    let x = rng.gen_range(0..GRID_WIDTH as i32);
+    let y = rng.gen_range(0..GRID_HEIGHT as i32);
+
+    cmd.spawn(SpriteBundle {
+        sprite: Sprite {
+            color: Color::RED,
+            custom_size: Some(Vec2::ONE),
+            ..default()
+        },
+        transform: Transform::from_xyz(x as f32, y as f32, 0.),
+        ..default()
+    })
+    .insert(Food);
 }
 
 fn spawn_snake(mut cmd: Commands) {
