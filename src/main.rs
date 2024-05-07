@@ -40,6 +40,9 @@ fn main() {
                 check_wall_collision
                     .after(tick_move_timer)
                     .before(move_snake),
+                check_body_collision
+                    .after(tick_move_timer)
+                    .before(move_snake),
                 move_snake
                     .after(tick_move_timer)
                     .after(change_head_direction),
@@ -178,5 +181,27 @@ fn check_wall_collision(
     if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
         timer.0.pause();
         timer.0.reset();
+    }
+}
+
+fn check_body_collision(
+    transform_q: Query<&Transform>,
+    next_direction_q: Query<&NextDirection>,
+    body: Res<SnakeBody>,
+    mut timer: ResMut<MoveTimer>,
+) {
+    if !timer.0.finished() {
+        return;
+    }
+    let head_transform = transform_q.get(body.0[0]).unwrap();
+    let next_direction = next_direction_q.single();
+    let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
+
+    for &segment in body.0.iter().skip(1) {
+        let body_transform = transform_q.get(segment).unwrap();
+        if next_head_pos == body_transform.translation {
+            timer.0.pause();
+            timer.0.reset();
+        }
     }
 }
