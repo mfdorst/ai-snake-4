@@ -32,7 +32,19 @@ fn main() {
                 spawn_snake,
             ),
         )
-        .add_systems(Update, (change_head_direction, move_snake))
+        .add_systems(
+            Update,
+            (
+                tick_move_timer,
+                change_head_direction,
+                check_wall_collision
+                    .after(tick_move_timer)
+                    .before(move_snake),
+                move_snake
+                    .after(tick_move_timer)
+                    .after(change_head_direction),
+            ),
+        )
         .insert_resource(MoveTimer(Timer::from_seconds(
             1. / STEPS_PER_SECOND,
             TimerMode::Repeating,
@@ -128,31 +140,43 @@ fn change_head_direction(
     }
 }
 
+fn tick_move_timer(mut timer: ResMut<MoveTimer>, time: Res<Time>) {
+    timer.0.tick(time.delta());
+}
+
 fn move_snake(
     mut transform_q: Query<&mut Transform>,
-    mut timer: ResMut<MoveTimer>,
+    timer: Res<MoveTimer>,
     mut direction_q: Query<(&mut CurrentDirection, &NextDirection), With<SnakeHead>>,
     body: Res<SnakeBody>,
-    time: Res<Time>,
 ) {
-    timer.0.tick(time.delta());
-
     if timer.0.finished() {
-        // Iterate over body segments in pairs from tail to head so positions are not written
-        // before they are read
         let body_iter = body.0.iter().rev().zip(body.0.iter().rev().skip(1));
-
-        // Set the position of each segment to the position of the next segment
         for (&current, &next) in body_iter {
             let next_transform = transform_q.get(next).unwrap().clone();
             let mut current_transform = transform_q.get_mut(current).unwrap();
             *current_transform = next_transform;
         }
 
-        // Move the head in the direciton of movement
         let mut head_transform = transform_q.get_mut(body.0[0]).unwrap();
         let (mut current_direction, next_direction) = direction_q.single_mut();
         current_direction.0 = next_direction.0;
         head_transform.translation += current_direction.0.extend(0.);
+    }
+}
+
+fn check_wall_collision(
+    q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
+    mut timer: ResMut<MoveTimer>,
+) {
+    if !timer.0.finished() {
+        return;
+    }
+    let (transform, direction) = q.single();
+    let t = transform.translation + direction.0.extend(0.);
+
+    if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
+        timer.0.pause();
+        timer.0.reset();
     }
 }
