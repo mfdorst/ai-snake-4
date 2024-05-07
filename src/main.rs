@@ -45,6 +45,7 @@ fn main() {
                 check_body_collision
                     .before(move_snake)
                     .after(tick_move_timer),
+                check_food_collision.after(tick_move_timer),
                 check_wall_collision
                     .before(move_snake)
                     .after(tick_move_timer),
@@ -102,6 +103,26 @@ fn check_body_collision(
         if next_head_pos == body_transform.translation {
             timer.0.pause();
             timer.0.reset();
+        }
+    }
+}
+
+fn check_food_collision(
+    food_transform_q: Query<&Transform, With<Food>>,
+    head_transform_q: Query<&Transform, With<SnakeHead>>,
+    next_direction_q: Query<&NextDirection>,
+    timer: Res<MoveTimer>,
+) {
+    if !timer.0.finished() {
+        return;
+    }
+    let head_transform = head_transform_q.single();
+    let next_direction = next_direction_q.single();
+    let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
+
+    for food_transform in &food_transform_q {
+        if next_head_pos == food_transform.translation {
+            println!("Yum!");
         }
     }
 }
