@@ -184,7 +184,7 @@ fn setup_play_area(mut cmd: Commands) {
             ..default()
         },
         // Move the play area so the bottom left corner is at (0,0)
-        transform: Transform::from_xyz(GRID_WIDTH / 2. - 0.5, GRID_HEIGHT / 2. - 0.5, 0.),
+        transform: Transform::from_xyz(GRID_WIDTH / 2. - 0.5, GRID_HEIGHT / 2. - 0.5, -1.),
         ..default()
     });
 }
