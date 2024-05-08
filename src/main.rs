@@ -142,6 +142,21 @@ fn check_food_collision(
     }
 }
 
+fn check_wall_collision(
+    mut ev_move: EventReader<MoveEvent>,
+    mut is_dead: ResMut<IsDead>,
+    q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
+) {
+    for _ in ev_move.read() {
+        let (transform, direction) = q.single();
+        let t = transform.translation + direction.0.extend(0.);
+
+        if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
+            is_dead.0 = true;
+        }
+    }
+}
+
 fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventReader<EatEvent>) {
     for _ in ev_eat.read() {
         let new_segment = cmd
@@ -156,21 +171,6 @@ fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventR
             .id();
 
         body.0.push(new_segment);
-    }
-}
-
-fn check_wall_collision(
-    mut ev_move: EventReader<MoveEvent>,
-    mut is_dead: ResMut<IsDead>,
-    q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
-) {
-    for _ in ev_move.read() {
-        let (transform, direction) = q.single();
-        let t = transform.translation + direction.0.extend(0.);
-
-        if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
-            is_dead.0 = true;
-        }
     }
 }
 
