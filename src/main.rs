@@ -18,6 +18,9 @@ struct SnakeHead;
 #[derive(Event)]
 struct EatEvent;
 
+#[derive(Event)]
+struct MoveEvent;
+
 #[derive(Resource)]
 struct MoveTimer(Timer);
 
@@ -66,6 +69,7 @@ fn main() {
             TimerMode::Repeating,
         )))
         .add_event::<EatEvent>()
+        .add_event::<MoveEvent>()
         .run();
 }
 
@@ -95,43 +99,42 @@ fn change_head_direction(
 
 fn check_body_collision(
     mut timer: ResMut<MoveTimer>,
+    mut ev_move: EventReader<MoveEvent>,
     next_direction_q: Query<&NextDirection>,
     transform_q: Query<&Transform>,
     body: Res<SnakeBody>,
 ) {
-    if !timer.0.finished() {
-        return;
-    }
-    let head_transform = transform_q.get(body.0[0]).unwrap();
-    let next_direction = next_direction_q.single();
-    let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
+    for _ in ev_move.read() {
+        let head_transform = transform_q.get(body.0[0]).unwrap();
+        let next_direction = next_direction_q.single();
+        let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
 
-    for &segment in body.0.iter().skip(1) {
-        let body_transform = transform_q.get(segment).unwrap();
-        if next_head_pos == body_transform.translation {
-            timer.0.pause();
-            timer.0.reset();
+        for &segment in body.0.iter().skip(1) {
+            let body_transform = transform_q.get(segment).unwrap();
+            if next_head_pos == body_transform.translation {
+                timer.0.pause();
+                timer.0.reset();
+            }
         }
     }
 }
 
 fn check_food_collision(
     mut ev_eat: EventWriter<EatEvent>,
+    mut ev_move: EventReader<MoveEvent>,
     food_q: Query<&Transform, With<Food>>,
     head_transform_q: Query<&Transform, With<SnakeHead>>,
     next_direction_q: Query<&NextDirection>,
-    timer: Res<MoveTimer>,
 ) {
-    if !timer.0.finished() {
-        return;
-    }
-    let head_transform = head_transform_q.single();
-    let next_direction = next_direction_q.single();
-    let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
+    for _ in ev_move.read() {
+        let head_transform = head_transform_q.single();
+        let next_direction = next_direction_q.single();
+        let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
 
-    for food_transform in &food_q {
-        if next_head_pos == food_transform.translation {
-            ev_eat.send(EatEvent);
+        for food_transform in &food_q {
+            if next_head_pos == food_transform.translation {
+                ev_eat.send(EatEvent);
+            }
         }
     }
 }
@@ -154,28 +157,28 @@ fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventR
 }
 
 fn check_wall_collision(
+    mut ev_move: EventReader<MoveEvent>,
     mut timer: ResMut<MoveTimer>,
     q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
 ) {
-    if !timer.0.finished() {
-        return;
-    }
-    let (transform, direction) = q.single();
-    let t = transform.translation + direction.0.extend(0.);
+    for _ in ev_move.read() {
+        let (transform, direction) = q.single();
+        let t = transform.translation + direction.0.extend(0.);
 
-    if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
-        timer.0.pause();
-        timer.0.reset();
+        if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
+            timer.0.pause();
+            timer.0.reset();
+        }
     }
 }
 
 fn move_snake(
     mut direction_q: Query<(&mut CurrentDirection, &NextDirection), With<SnakeHead>>,
     mut transform_q: Query<&mut Transform>,
+    mut ev_move: EventReader<MoveEvent>,
     body: Res<SnakeBody>,
-    timer: Res<MoveTimer>,
 ) {
-    if timer.0.finished() {
+    for _ in ev_move.read() {
         let body_iter = body.0.iter().rev().zip(body.0.iter().rev().skip(1));
         for (&current, &next) in body_iter {
             let next_transform = transform_q.get(next).unwrap().clone();
@@ -288,6 +291,12 @@ fn spawn_snake(mut cmd: Commands) {
     cmd.insert_resource(SnakeBody(body));
 }
 
-fn tick_move_timer(mut timer: ResMut<MoveTimer>, time: Res<Time>) {
-    timer.0.tick(time.delta());
+fn tick_move_timer(
+    mut timer: ResMut<MoveTimer>,
+    mut ev_move: EventWriter<MoveEvent>,
+    time: Res<Time>,
+) {
+    if timer.0.tick(time.delta()).just_finished() {
+        ev_move.send(MoveEvent);
+    }
 }
