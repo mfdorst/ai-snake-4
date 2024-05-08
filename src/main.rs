@@ -15,6 +15,9 @@ struct NextDirection(Direction2d);
 #[derive(Component)]
 struct SnakeHead;
 
+#[derive(Event)]
+struct EatEvent;
+
 #[derive(Resource)]
 struct MoveTimer(Timer);
 
@@ -49,6 +52,7 @@ fn main() {
                 )
                     .after(tick_move_timer)
                     .before(move_snake),
+                grow_snake.after(check_food_collision).before(move_snake),
                 move_snake
                     .after(tick_move_timer)
                     .after(change_head_direction),
@@ -58,6 +62,7 @@ fn main() {
             1. / STEPS_PER_SECOND,
             TimerMode::Repeating,
         )))
+        .add_event::<EatEvent>()
         .run();
 }
 
@@ -109,7 +114,7 @@ fn check_body_collision(
 
 fn check_food_collision(
     mut cmd: Commands,
-    mut body: ResMut<SnakeBody>,
+    mut eat_events: EventWriter<EatEvent>,
     food_q: Query<(Entity, &Transform), With<Food>>,
     head_transform_q: Query<&Transform, With<SnakeHead>>,
     next_direction_q: Query<&NextDirection>,
@@ -126,22 +131,34 @@ fn check_food_collision(
         if next_head_pos == food_transform.translation {
             cmd.entity(food_entity).despawn();
             spawn_food(&mut cmd);
-
-            let new_segment = cmd
-                .spawn(SpriteBundle {
-                    sprite: Sprite {
-                        color: Color::WHITE,
-                        custom_size: Some(Vec2::ONE),
-                        ..default()
-                    },
-                    // Put it somewhere in the body. Position will be updated next frame.
-                    transform: *head_transform,
-                    ..default()
-                })
-                .id();
-
-            body.0.push(new_segment);
+            eat_events.send(EatEvent);
         }
+    }
+}
+
+fn grow_snake(
+    mut cmd: Commands,
+    mut body: ResMut<SnakeBody>,
+    mut eat_events: EventReader<EatEvent>,
+    q: Query<&Transform, With<SnakeHead>>,
+) {
+    for _ in eat_events.read() {
+        let head_transform = q.single();
+
+        let new_segment = cmd
+            .spawn(SpriteBundle {
+                sprite: Sprite {
+                    color: Color::WHITE,
+                    custom_size: Some(Vec2::ONE),
+                    ..default()
+                },
+                // Position will be updated next frame
+                transform: *head_transform,
+                ..default()
+            })
+            .id();
+
+        body.0.push(new_segment);
     }
 }
 
