@@ -52,7 +52,10 @@ fn main() {
                 )
                     .after(tick_move_timer)
                     .before(move_snake),
-                grow_snake.after(check_food_collision).before(move_snake),
+                (grow_snake, respawn_food)
+                    .after(check_food_collision)
+                    .before(check_body_collision)
+                    .before(move_snake),
                 move_snake
                     .after(tick_move_timer)
                     .after(change_head_direction),
@@ -113,9 +116,8 @@ fn check_body_collision(
 }
 
 fn check_food_collision(
-    mut cmd: Commands,
-    mut eat_events: EventWriter<EatEvent>,
-    food_q: Query<(Entity, &Transform), With<Food>>,
+    mut ev_eat: EventWriter<EatEvent>,
+    food_q: Query<&Transform, With<Food>>,
     head_transform_q: Query<&Transform, With<SnakeHead>>,
     next_direction_q: Query<&NextDirection>,
     timer: Res<MoveTimer>,
@@ -127,24 +129,15 @@ fn check_food_collision(
     let next_direction = next_direction_q.single();
     let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
 
-    for (food_entity, food_transform) in &food_q {
+    for food_transform in &food_q {
         if next_head_pos == food_transform.translation {
-            cmd.entity(food_entity).despawn();
-            spawn_food(&mut cmd);
-            eat_events.send(EatEvent);
+            ev_eat.send(EatEvent);
         }
     }
 }
 
-fn grow_snake(
-    mut cmd: Commands,
-    mut body: ResMut<SnakeBody>,
-    mut eat_events: EventReader<EatEvent>,
-    q: Query<&Transform, With<SnakeHead>>,
-) {
-    for _ in eat_events.read() {
-        let head_transform = q.single();
-
+fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventReader<EatEvent>) {
+    for _ in ev_eat.read() {
         let new_segment = cmd
             .spawn(SpriteBundle {
                 sprite: Sprite {
@@ -152,8 +145,6 @@ fn grow_snake(
                     custom_size: Some(Vec2::ONE),
                     ..default()
                 },
-                // Position will be updated next frame
-                transform: *head_transform,
                 ..default()
             })
             .id();
@@ -196,6 +187,19 @@ fn move_snake(
         let (mut current_direction, next_direction) = direction_q.single_mut();
         current_direction.0 = next_direction.0;
         head_transform.translation += current_direction.0.extend(0.);
+    }
+}
+
+fn respawn_food(
+    mut cmd: Commands,
+    mut ev_eat: EventReader<EatEvent>,
+    food_q: Query<Entity, With<Food>>,
+) {
+    for _ in ev_eat.read() {
+        for food in &food_q {
+            cmd.entity(food).despawn();
+            spawn_food(&mut cmd);
+        }
     }
 }
 
