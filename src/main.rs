@@ -22,6 +22,9 @@ struct EatEvent;
 struct MoveEvent;
 
 #[derive(Resource)]
+struct IsDead(bool);
+
+#[derive(Resource)]
 struct MoveTimer(Timer);
 
 #[derive(Resource)]
@@ -68,6 +71,7 @@ fn main() {
             1. / STEPS_PER_SECOND,
             TimerMode::Repeating,
         )))
+        .insert_resource(IsDead(false))
         .add_event::<EatEvent>()
         .add_event::<MoveEvent>()
         .run();
@@ -98,8 +102,8 @@ fn change_head_direction(
 }
 
 fn check_body_collision(
-    mut timer: ResMut<MoveTimer>,
     mut ev_move: EventReader<MoveEvent>,
+    mut is_dead: ResMut<IsDead>,
     next_direction_q: Query<&NextDirection>,
     transform_q: Query<&Transform>,
     body: Res<SnakeBody>,
@@ -112,8 +116,7 @@ fn check_body_collision(
         for &segment in body.0.iter().skip(1) {
             let body_transform = transform_q.get(segment).unwrap();
             if next_head_pos == body_transform.translation {
-                timer.0.pause();
-                timer.0.reset();
+                is_dead.0 = true;
             }
         }
     }
@@ -158,7 +161,7 @@ fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventR
 
 fn check_wall_collision(
     mut ev_move: EventReader<MoveEvent>,
-    mut timer: ResMut<MoveTimer>,
+    mut is_dead: ResMut<IsDead>,
     q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
 ) {
     for _ in ev_move.read() {
@@ -166,8 +169,7 @@ fn check_wall_collision(
         let t = transform.translation + direction.0.extend(0.);
 
         if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
-            timer.0.pause();
-            timer.0.reset();
+            is_dead.0 = true;
         }
     }
 }
@@ -177,7 +179,11 @@ fn move_snake(
     mut transform_q: Query<&mut Transform>,
     mut ev_move: EventReader<MoveEvent>,
     body: Res<SnakeBody>,
+    is_dead: Res<IsDead>,
 ) {
+    if is_dead.0 {
+        return;
+    }
     for _ in ev_move.read() {
         let body_iter = body.0.iter().rev().zip(body.0.iter().rev().skip(1));
         for (&current, &next) in body_iter {
@@ -294,9 +300,10 @@ fn spawn_snake(mut cmd: Commands) {
 fn tick_move_timer(
     mut timer: ResMut<MoveTimer>,
     mut ev_move: EventWriter<MoveEvent>,
+    is_dead: Res<IsDead>,
     time: Res<Time>,
 ) {
-    if timer.0.tick(time.delta()).just_finished() {
+    if !is_dead.0 && timer.0.tick(time.delta()).just_finished() {
         ev_move.send(MoveEvent);
     }
 }
