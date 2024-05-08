@@ -1,10 +1,10 @@
-use bevy::{prelude::*, render::camera::ScalingMode};
+use bevy::{prelude::*, render::camera::ScalingMode, utils::Duration};
 use rand::Rng;
 
 const GRID_HEIGHT: f32 = 36.;
 const GRID_WIDTH: f32 = 64.;
 const SNAKE_LENGTH: usize = 5;
-const STEPS_PER_SECOND: f32 = 8.;
+const INITIAL_SPEED: f32 = 8.;
 
 #[derive(Component)]
 struct CurrentDirection(Direction2d);
@@ -26,6 +26,9 @@ struct IsDead(bool);
 
 #[derive(Resource)]
 struct MoveTimer(Timer);
+
+#[derive(Resource)]
+struct Speed(f32);
 
 #[derive(Resource)]
 struct SnakeBody(Vec<Entity>);
@@ -58,7 +61,7 @@ fn main() {
                 )
                     .after(tick_move_timer)
                     .before(move_snake),
-                (grow_snake, respawn_food)
+                (grow_snake, respawn_food, speed_up)
                     .after(check_food_collision)
                     .before(check_body_collision)
                     .before(move_snake),
@@ -68,10 +71,11 @@ fn main() {
             ),
         )
         .insert_resource(MoveTimer(Timer::from_seconds(
-            1. / STEPS_PER_SECOND,
+            1. / INITIAL_SPEED,
             TimerMode::Repeating,
         )))
         .insert_resource(IsDead(false))
+        .insert_resource(Speed(INITIAL_SPEED))
         .add_event::<EatEvent>()
         .add_event::<MoveEvent>()
         .run();
@@ -295,6 +299,17 @@ fn spawn_snake(mut cmd: Commands) {
         );
     }
     cmd.insert_resource(SnakeBody(body));
+}
+
+fn speed_up(
+    mut speed: ResMut<Speed>,
+    mut timer: ResMut<MoveTimer>,
+    mut ev_eat: EventReader<EatEvent>,
+) {
+    for _ in ev_eat.read() {
+        speed.0 *= 1.05;
+        timer.0.set_duration(Duration::from_secs_f32(1. / speed.0));
+    }
 }
 
 fn tick_move_timer(
