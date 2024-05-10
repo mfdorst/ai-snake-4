@@ -1,10 +1,10 @@
+use crate::constants::*;
+use crate::play_area::PlayAreaPlugin;
 use bevy::{prelude::*, render::camera::ScalingMode, utils::Duration};
 use rand::Rng;
 
-const GRID_HEIGHT: f32 = 36.;
-const GRID_WIDTH: f32 = 64.;
-const SNAKE_LENGTH: usize = 5;
-const INITIAL_SPEED: f32 = 8.;
+mod constants;
+mod play_area;
 
 #[derive(Component)]
 struct CurrentDirection(Direction2d);
@@ -38,16 +38,10 @@ struct Food;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins((DefaultPlugins, PlayAreaPlugin))
         .add_systems(
             Startup,
-            (
-                setup_camera,
-                setup_clear_color,
-                setup_play_area,
-                setup_food,
-                spawn_snake,
-            ),
+            (setup_camera, setup_clear_color, setup_food, spawn_snake),
         )
         .add_systems(
             Update,
@@ -230,19 +224,6 @@ fn setup_clear_color(mut cmd: Commands) {
 
 fn setup_food(mut cmd: Commands) {
     spawn_food(&mut cmd);
-}
-
-fn setup_play_area(mut cmd: Commands) {
-    cmd.spawn(SpriteBundle {
-        sprite: Sprite {
-            color: Color::BLACK,
-            custom_size: Some(Vec2::new(GRID_WIDTH, GRID_HEIGHT)),
-            ..default()
-        },
-        // Move the play area so the bottom left corner is at (0,0)
-        transform: Transform::from_xyz(GRID_WIDTH / 2. - 0.5, GRID_HEIGHT / 2. - 0.5, -1.),
-        ..default()
-    });
 }
 
 fn spawn_food(cmd: &mut Commands) {
