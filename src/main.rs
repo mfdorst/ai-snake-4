@@ -191,7 +191,7 @@ fn move_snake(
     for _ in ev_move.read() {
         let body_iter = body.0.iter().rev().zip(body.0.iter().rev().skip(1));
         for (&current, &next) in body_iter {
-            let next_transform = transform_q.get(next).unwrap().clone();
+            let next_transform = *transform_q.get(next).unwrap();
             let mut current_transform = transform_q.get_mut(current).unwrap();
             *current_transform = next_transform;
         }
@@ -218,7 +218,7 @@ fn respawn_food(
 
 fn setup_camera(mut cmd: Commands) {
     let mut camera = Camera2dBundle::default();
-    camera.projection.scaling_mode = ScalingMode::FixedHorizontal(GRID_WIDTH as f32);
+    camera.projection.scaling_mode = ScalingMode::FixedHorizontal(GRID_WIDTH);
     // Pan the camera so that (0,0) is in the bottom left, assuming a 16x9 aspect ratio
     camera.transform = Transform::from_xyz(GRID_WIDTH / 2. - 0.5, GRID_HEIGHT / 2. - 0.5, 0.);
     cmd.spawn(camera);
@@ -269,7 +269,6 @@ fn spawn_snake(mut cmd: Commands) {
         ..default()
     };
     let transforms: Vec<_> = (0..SNAKE_LENGTH)
-        .into_iter()
         .map(|i| Transform::from_xyz(GRID_WIDTH / 2. - i as f32, GRID_HEIGHT / 2., 0.))
         .collect();
 
