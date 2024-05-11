@@ -1,4 +1,4 @@
-use crate::{constants::*, MoveTimer};
+use crate::{constants::*, movement::MoveTimer};
 use bevy::{prelude::*, utils::Duration};
 use rand::Rng;
 

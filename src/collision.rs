@@ -1,5 +1,8 @@
 use crate::{
-    constants::*, food::Food, EatEvent, IsDead, MoveEvent, NextDirection, SnakeBody, SnakeHead,
+    constants::*,
+    food::{EatEvent, Food},
+    movement::MoveEvent,
+    IsDead, NextDirection, SnakeBody, SnakeHead,
 };
 use bevy::prelude::*;
 
