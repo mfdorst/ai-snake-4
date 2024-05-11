@@ -2,7 +2,7 @@ use bevy::{prelude::*, render::camera::ScalingMode};
 use collision::{CollisionPlugin, CollisionSet};
 use constants::*;
 use food::{EatSet, FoodPlugin};
-use movement::{MovePlugin, MoveSet, MoveTimerTickSet};
+use movement::{MovePlugin, SnakeMoveSet, SnakeMoveTimerTickSet};
 use play_area::PlayAreaPlugin;
 
 mod collision;
@@ -39,12 +39,7 @@ fn main() {
         .add_systems(Update, change_head_direction)
         .configure_sets(
             Update,
-            (
-                MoveTimerTickSet,
-                CollisionSet.after(MoveTimerTickSet).before(MoveSet),
-                EatSet.after(CollisionSet).before(MoveSet),
-                MoveSet,
-            ),
+            (SnakeMoveTimerTickSet, CollisionSet, EatSet, SnakeMoveSet).chain(),
         )
         .insert_resource(IsDead(false))
         .run();

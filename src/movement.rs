@@ -4,33 +4,38 @@ use bevy::prelude::*;
 pub struct MovePlugin;
 
 #[derive(Event)]
-pub struct MoveEvent;
+pub struct SnakeMoveEvent;
 
 #[derive(Resource)]
 pub struct MoveTimer(pub Timer);
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MoveTimerTickSet;
+pub struct SnakeMoveTimerTickSet;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MoveSet;
+pub struct SnakeMoveSet;
 
 impl Plugin for MovePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, tick_move_timer.in_set(MoveTimerTickSet))
-            .add_systems(Update, move_snake.in_set(MoveSet))
-            .insert_resource(MoveTimer(Timer::from_seconds(
-                1. / INITIAL_SPEED,
-                TimerMode::Repeating,
-            )))
-            .add_event::<MoveEvent>();
+        app.add_systems(
+            Update,
+            (
+                tick_move_timer.in_set(SnakeMoveTimerTickSet),
+                move_snake.in_set(SnakeMoveSet),
+            ),
+        )
+        .insert_resource(MoveTimer(Timer::from_seconds(
+            1. / INITIAL_SPEED,
+            TimerMode::Repeating,
+        )))
+        .add_event::<SnakeMoveEvent>();
     }
 }
 
 fn move_snake(
     mut direction_q: Query<(&mut CurrentDirection, &NextDirection), With<SnakeHead>>,
     mut transform_q: Query<&mut Transform>,
-    mut ev_move: EventReader<MoveEvent>,
+    mut ev_move: EventReader<SnakeMoveEvent>,
     body: Res<SnakeBody>,
     is_dead: Res<IsDead>,
 ) {
@@ -54,11 +59,11 @@ fn move_snake(
 
 fn tick_move_timer(
     mut timer: ResMut<MoveTimer>,
-    mut ev_move: EventWriter<MoveEvent>,
+    mut ev_move: EventWriter<SnakeMoveEvent>,
     is_dead: Res<IsDead>,
     time: Res<Time>,
 ) {
     if !is_dead.0 && timer.0.tick(time.delta()).just_finished() {
-        ev_move.send(MoveEvent);
+        ev_move.send(SnakeMoveEvent);
     }
 }

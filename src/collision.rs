@@ -1,7 +1,7 @@
 use crate::{
     constants::*,
     food::{EatEvent, Food},
-    movement::MoveEvent,
+    movement::SnakeMoveEvent,
     IsDead, NextDirection, SnakeBody, SnakeHead,
 };
 use bevy::prelude::*;
@@ -26,7 +26,7 @@ impl Plugin for CollisionPlugin {
 }
 
 fn check_body_collision(
-    mut ev_move: EventReader<MoveEvent>,
+    mut ev_move: EventReader<SnakeMoveEvent>,
     mut is_dead: ResMut<IsDead>,
     next_direction_q: Query<&NextDirection>,
     transform_q: Query<&Transform>,
@@ -48,7 +48,7 @@ fn check_body_collision(
 
 fn check_food_collision(
     mut ev_eat: EventWriter<EatEvent>,
-    mut ev_move: EventReader<MoveEvent>,
+    mut ev_move: EventReader<SnakeMoveEvent>,
     food_q: Query<&Transform, With<Food>>,
     head_transform_q: Query<&Transform, With<SnakeHead>>,
     next_direction_q: Query<&NextDirection>,
@@ -67,7 +67,7 @@ fn check_food_collision(
 }
 
 fn check_wall_collision(
-    mut ev_move: EventReader<MoveEvent>,
+    mut ev_move: EventReader<SnakeMoveEvent>,
     mut is_dead: ResMut<IsDead>,
     q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
 ) {
