@@ -1,8 +1,9 @@
-use crate::{constants::*, movement::MoveTimer};
+use crate::{
+    constants::*,
+    snake::{SnakeBody, SnakeMoveTimer},
+};
 use bevy::{prelude::*, utils::Duration};
 use rand::Rng;
-
-use crate::SnakeBody;
 
 pub struct FoodPlugin;
 
@@ -85,7 +86,7 @@ fn spawn_food(cmd: &mut Commands) {
 
 fn speed_up_snake(
     mut speed: ResMut<Speed>,
-    mut timer: ResMut<MoveTimer>,
+    mut timer: ResMut<SnakeMoveTimer>,
     mut ev_eat: EventReader<EatEvent>,
 ) {
     for _ in ev_eat.read() {
