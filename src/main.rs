@@ -1,11 +1,12 @@
-use crate::constants::*;
-use crate::play_area::PlayAreaPlugin;
-use bevy::{prelude::*, render::camera::ScalingMode, utils::Duration};
+use bevy::{prelude::*, render::camera::ScalingMode};
 use collision::{CollisionPlugin, CollisionSet};
-use rand::Rng;
+use constants::*;
+use food::EatSet;
+use play_area::PlayAreaPlugin;
 
 mod collision;
 mod constants;
+mod food;
 mod play_area;
 
 #[derive(Component)]
@@ -30,27 +31,17 @@ pub struct IsDead(bool);
 struct MoveTimer(Timer);
 
 #[derive(Resource)]
-struct Speed(f32);
-
-#[derive(Resource)]
 pub struct SnakeBody(Vec<Entity>);
-
-#[derive(Component)]
-pub struct Food;
 
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PlayAreaPlugin, CollisionPlugin))
-        .add_systems(
-            Startup,
-            (setup_camera, setup_clear_color, setup_food, spawn_snake),
-        )
+        .add_systems(Startup, (setup_camera, setup_clear_color, spawn_snake))
         .add_systems(
             Update,
             (
                 change_head_direction,
                 tick_move_timer,
-                (grow_snake, respawn_food, speed_up).before(move_snake),
                 move_snake
                     .after(tick_move_timer)
                     .after(change_head_direction),
@@ -58,15 +49,16 @@ fn main() {
         )
         .configure_sets(
             Update,
-            CollisionSet.after(tick_move_timer).before(move_snake),
+            (
+                CollisionSet.after(tick_move_timer).before(move_snake),
+                EatSet.after(CollisionSet).before(move_snake),
+            ),
         )
         .insert_resource(MoveTimer(Timer::from_seconds(
             1. / INITIAL_SPEED,
             TimerMode::Repeating,
         )))
         .insert_resource(IsDead(false))
-        .insert_resource(Speed(INITIAL_SPEED))
-        .add_event::<EatEvent>()
         .add_event::<MoveEvent>()
         .run();
 }
@@ -95,25 +87,6 @@ fn change_head_direction(
     }
 }
 
-fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventReader<EatEvent>) {
-    for _ in ev_eat.read() {
-        let new_segment = cmd
-            .spawn(SpriteBundle {
-                sprite: Sprite {
-                    color: Color::WHITE,
-                    custom_size: Some(Vec2::ONE),
-                    ..default()
-                },
-                // Make new segment invisible by spawning it behind the play area
-                transform: Transform::from_xyz(0., 0., -2.),
-                ..default()
-            })
-            .id();
-
-        body.0.push(new_segment);
-    }
-}
-
 fn move_snake(
     mut direction_q: Query<(&mut CurrentDirection, &NextDirection), With<SnakeHead>>,
     mut transform_q: Query<&mut Transform>,
@@ -139,19 +112,6 @@ fn move_snake(
     }
 }
 
-fn respawn_food(
-    mut cmd: Commands,
-    mut ev_eat: EventReader<EatEvent>,
-    food_q: Query<Entity, With<Food>>,
-) {
-    for _ in ev_eat.read() {
-        for food in &food_q {
-            cmd.entity(food).despawn();
-            spawn_food(&mut cmd);
-        }
-    }
-}
-
 fn setup_camera(mut cmd: Commands) {
     let mut camera = Camera2dBundle::default();
     camera.projection.scaling_mode = ScalingMode::FixedHorizontal(GRID_WIDTH);
@@ -162,27 +122,6 @@ fn setup_camera(mut cmd: Commands) {
 
 fn setup_clear_color(mut cmd: Commands) {
     cmd.insert_resource(ClearColor(Color::GRAY));
-}
-
-fn setup_food(mut cmd: Commands) {
-    spawn_food(&mut cmd);
-}
-
-fn spawn_food(cmd: &mut Commands) {
-    let mut rng = rand::thread_rng();
-    let x = rng.gen_range(0..GRID_WIDTH as i32);
-    let y = rng.gen_range(0..GRID_HEIGHT as i32);
-
-    cmd.spawn(SpriteBundle {
-        sprite: Sprite {
-            color: Color::RED,
-            custom_size: Some(Vec2::ONE),
-            ..default()
-        },
-        transform: Transform::from_xyz(x as f32, y as f32, 0.),
-        ..default()
-    })
-    .insert(Food);
 }
 
 fn spawn_snake(mut cmd: Commands) {
@@ -221,17 +160,6 @@ fn spawn_snake(mut cmd: Commands) {
         );
     }
     cmd.insert_resource(SnakeBody(body));
-}
-
-fn speed_up(
-    mut speed: ResMut<Speed>,
-    mut timer: ResMut<MoveTimer>,
-    mut ev_eat: EventReader<EatEvent>,
-) {
-    for _ in ev_eat.read() {
-        speed.0 *= 1.05;
-        timer.0.set_duration(Duration::from_secs_f32(1. / speed.0));
-    }
 }
 
 fn tick_move_timer(

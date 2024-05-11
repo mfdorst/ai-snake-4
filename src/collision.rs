@@ -1,5 +1,6 @@
-use crate::constants::*;
-use crate::{EatEvent, Food, IsDead, MoveEvent, NextDirection, SnakeBody, SnakeHead};
+use crate::{
+    constants::*, food::Food, EatEvent, IsDead, MoveEvent, NextDirection, SnakeBody, SnakeHead,
+};
 use bevy::prelude::*;
 
 pub struct CollisionPlugin;
