@@ -1,8 +1,10 @@
 use crate::constants::*;
 use crate::play_area::PlayAreaPlugin;
 use bevy::{prelude::*, render::camera::ScalingMode, utils::Duration};
+use collision::{CollisionPlugin, CollisionSet};
 use rand::Rng;
 
+mod collision;
 mod constants;
 mod play_area;
 
@@ -10,19 +12,19 @@ mod play_area;
 struct CurrentDirection(Direction2d);
 
 #[derive(Component)]
-struct NextDirection(Direction2d);
+pub struct NextDirection(Direction2d);
 
 #[derive(Component)]
-struct SnakeHead;
+pub struct SnakeHead;
 
 #[derive(Event)]
-struct EatEvent;
+pub struct EatEvent;
 
 #[derive(Event)]
-struct MoveEvent;
+pub struct MoveEvent;
 
 #[derive(Resource)]
-struct IsDead(bool);
+pub struct IsDead(bool);
 
 #[derive(Resource)]
 struct MoveTimer(Timer);
@@ -31,14 +33,14 @@ struct MoveTimer(Timer);
 struct Speed(f32);
 
 #[derive(Resource)]
-struct SnakeBody(Vec<Entity>);
+pub struct SnakeBody(Vec<Entity>);
 
 #[derive(Component)]
-struct Food;
+pub struct Food;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, PlayAreaPlugin))
+        .add_plugins((DefaultPlugins, PlayAreaPlugin, CollisionPlugin))
         .add_systems(
             Startup,
             (setup_camera, setup_clear_color, setup_food, spawn_snake),
@@ -48,21 +50,15 @@ fn main() {
             (
                 change_head_direction,
                 tick_move_timer,
-                (
-                    check_body_collision,
-                    check_food_collision,
-                    check_wall_collision,
-                )
-                    .after(tick_move_timer)
-                    .before(move_snake),
-                (grow_snake, respawn_food, speed_up)
-                    .after(check_food_collision)
-                    .before(check_body_collision)
-                    .before(move_snake),
+                (grow_snake, respawn_food, speed_up).before(move_snake),
                 move_snake
                     .after(tick_move_timer)
                     .after(change_head_direction),
             ),
+        )
+        .configure_sets(
+            Update,
+            CollisionSet.after(tick_move_timer).before(move_snake),
         )
         .insert_resource(MoveTimer(Timer::from_seconds(
             1. / INITIAL_SPEED,
@@ -99,62 +95,6 @@ fn change_head_direction(
     }
 }
 
-fn check_body_collision(
-    mut ev_move: EventReader<MoveEvent>,
-    mut is_dead: ResMut<IsDead>,
-    next_direction_q: Query<&NextDirection>,
-    transform_q: Query<&Transform>,
-    body: Res<SnakeBody>,
-) {
-    for _ in ev_move.read() {
-        let head_transform = transform_q.get(body.0[0]).unwrap();
-        let next_direction = next_direction_q.single();
-        let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
-
-        for &segment in body.0.iter().skip(1) {
-            let body_transform = transform_q.get(segment).unwrap();
-            if next_head_pos == body_transform.translation {
-                is_dead.0 = true;
-            }
-        }
-    }
-}
-
-fn check_food_collision(
-    mut ev_eat: EventWriter<EatEvent>,
-    mut ev_move: EventReader<MoveEvent>,
-    food_q: Query<&Transform, With<Food>>,
-    head_transform_q: Query<&Transform, With<SnakeHead>>,
-    next_direction_q: Query<&NextDirection>,
-) {
-    for _ in ev_move.read() {
-        let head_transform = head_transform_q.single();
-        let next_direction = next_direction_q.single();
-        let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
-
-        for food_transform in &food_q {
-            if next_head_pos == food_transform.translation {
-                ev_eat.send(EatEvent);
-            }
-        }
-    }
-}
-
-fn check_wall_collision(
-    mut ev_move: EventReader<MoveEvent>,
-    mut is_dead: ResMut<IsDead>,
-    q: Query<(&Transform, &NextDirection), With<SnakeHead>>,
-) {
-    for _ in ev_move.read() {
-        let (transform, direction) = q.single();
-        let t = transform.translation + direction.0.extend(0.);
-
-        if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
-            is_dead.0 = true;
-        }
-    }
-}
-
 fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventReader<EatEvent>) {
     for _ in ev_eat.read() {
         let new_segment = cmd
@@ -164,6 +104,8 @@ fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventR
                     custom_size: Some(Vec2::ONE),
                     ..default()
                 },
+                // Make new segment invisible by spawning it behind the play area
+                transform: Transform::from_xyz(0., 0., -2.),
                 ..default()
             })
             .id();
