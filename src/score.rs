@@ -15,10 +15,10 @@ impl Plugin for ScorePlugin {
 
 fn setup_score_ui(mut cmd: Commands) {
     let text_pos = Vec3::new(4.5, GRID_HEIGHT - 2., 0.);
-    let text_size = 0.05;
+    let text_size = 0.025;
 
     let text_style = TextStyle {
-        font_size: 40.,
+        font_size: 80.,
         ..default()
     };
     cmd.spawn((
