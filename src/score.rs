@@ -1,4 +1,4 @@
-use crate::food::EatEvent;
+use crate::{constants::*, food::EatEvent};
 use bevy::prelude::*;
 
 #[derive(Component, Default)]
@@ -14,21 +14,26 @@ impl Plugin for ScorePlugin {
 }
 
 fn setup_score_ui(mut cmd: Commands) {
+    let text_pos = Vec3::new(4.5, GRID_HEIGHT - 2., 0.);
+    let text_size = 0.05;
+
     let text_style = TextStyle {
-        font_size: 40.0,
+        font_size: 40.,
         ..default()
     };
     cmd.spawn((
-        TextBundle::from_sections([
-            TextSection::new("Score: ", text_style.clone()),
-            TextSection::new("0", text_style),
-        ])
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0),
-            left: Val::Px(10.0),
+        Text2dBundle {
+            text: Text::from_sections([
+                TextSection::new("Score: ", text_style.clone()),
+                TextSection::new("0", text_style),
+            ]),
+            transform: Transform {
+                translation: text_pos,
+                scale: Vec3::splat(text_size),
+                ..default()
+            },
             ..default()
-        }),
+        },
         Score(0),
     ));
 }
