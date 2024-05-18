@@ -54,22 +54,21 @@ fn respawn_food(
     mut cmd: Commands,
     mut ev_eat: EventReader<EatEvent>,
     food_q: Query<Entity, With<Food>>,
-    transform_q: Query<&Transform>,
-    snake_body: Res<SnakeBody>,
+    transform_q: Query<&Transform, Without<Food>>,
 ) {
     if !ev_eat.is_empty() {
         ev_eat.clear();
         let food = food_q.single();
         cmd.entity(food).despawn();
-        spawn_food(&mut cmd, transform_q, snake_body);
+        spawn_food(&mut cmd, transform_q);
     }
 }
 
-fn setup_food(mut cmd: Commands, transform_q: Query<&Transform>, snake_body: Res<SnakeBody>) {
-    spawn_food(&mut cmd, transform_q, snake_body);
+fn setup_food(mut cmd: Commands, transform_q: Query<&Transform, Without<Food>>) {
+    spawn_food(&mut cmd, transform_q);
 }
 
-fn spawn_food(cmd: &mut Commands, transform_q: Query<&Transform>, snake_body: Res<SnakeBody>) {
+fn spawn_food(cmd: &mut Commands, transform_q: Query<&Transform, Without<Food>>) {
     let mut rng = rand::thread_rng();
 
     let transform = 'outer: loop {
@@ -77,11 +76,9 @@ fn spawn_food(cmd: &mut Commands, transform_q: Query<&Transform>, snake_body: Re
         let y = rng.gen_range(0..GRID_HEIGHT as i32);
         let food_pos = Vec3::new(x as f32, y as f32, 0.);
 
-        for &segment in &snake_body.0 {
-            if let Ok(segment_transform) = transform_q.get(segment) {
-                if segment_transform.translation == food_pos {
-                    continue 'outer;
-                }
+        for segment_transform in &transform_q {
+            if segment_transform.translation == food_pos {
+                continue 'outer;
             }
         }
         break Transform::from_translation(food_pos);
