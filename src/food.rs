@@ -1,6 +1,6 @@
 use crate::{
     constants::*,
-    snake::{SnakeBody, SnakeMoveTimer},
+    snake::{SetupSnakeSet, SnakeBody, SnakeMoveTimer},
 };
 use bevy::{prelude::*, utils::Duration};
 use rand::Rng;
@@ -21,7 +21,7 @@ pub struct EatEvent;
 
 impl Plugin for FoodPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_food)
+        app.add_systems(Startup, setup_food.after(SetupSnakeSet))
             .add_systems(
                 Update,
                 (grow_snake, respawn_food, speed_up_snake).in_set(EatSet),
@@ -54,23 +54,38 @@ fn respawn_food(
     mut cmd: Commands,
     mut ev_eat: EventReader<EatEvent>,
     food_q: Query<Entity, With<Food>>,
+    transform_q: Query<&Transform>,
+    snake_body: Res<SnakeBody>,
 ) {
-    for _ in ev_eat.read() {
-        for food in &food_q {
-            cmd.entity(food).despawn();
-            spawn_food(&mut cmd);
-        }
+    if !ev_eat.is_empty() {
+        ev_eat.clear();
+        let food = food_q.single();
+        cmd.entity(food).despawn();
+        spawn_food(&mut cmd, transform_q, snake_body);
     }
 }
 
-fn setup_food(mut cmd: Commands) {
-    spawn_food(&mut cmd);
+fn setup_food(mut cmd: Commands, transform_q: Query<&Transform>, snake_body: Res<SnakeBody>) {
+    spawn_food(&mut cmd, transform_q, snake_body);
 }
 
-fn spawn_food(cmd: &mut Commands) {
+fn spawn_food(cmd: &mut Commands, transform_q: Query<&Transform>, snake_body: Res<SnakeBody>) {
     let mut rng = rand::thread_rng();
-    let x = rng.gen_range(0..GRID_WIDTH as i32);
-    let y = rng.gen_range(0..GRID_HEIGHT as i32);
+
+    let transform = 'outer: loop {
+        let x = rng.gen_range(0..GRID_WIDTH as i32);
+        let y = rng.gen_range(0..GRID_HEIGHT as i32);
+        let food_pos = Vec3::new(x as f32, y as f32, 0.);
+
+        for &segment in &snake_body.0 {
+            if let Ok(segment_transform) = transform_q.get(segment) {
+                if segment_transform.translation == food_pos {
+                    continue 'outer;
+                }
+            }
+        }
+        break Transform::from_translation(food_pos);
+    };
 
     cmd.spawn(SpriteBundle {
         sprite: Sprite {
@@ -78,7 +93,7 @@ fn spawn_food(cmd: &mut Commands) {
             custom_size: Some(Vec2::ONE),
             ..default()
         },
-        transform: Transform::from_xyz(x as f32, y as f32, 0.),
+        transform,
         ..default()
     })
     .insert(Food);

@@ -22,6 +22,9 @@ pub struct SnakeMoveTimer(pub Timer);
 pub struct SnakeMoveEvent;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SetupSnakeSet;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SnakeMoveSet;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
@@ -29,7 +32,7 @@ pub struct SnakeMoveTimerTickSet;
 
 impl Plugin for SnakePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_snake)
+        app.add_systems(Startup, spawn_snake.in_set(SetupSnakeSet))
             .add_systems(
                 Update,
                 (
