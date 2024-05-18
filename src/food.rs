@@ -71,17 +71,15 @@ fn setup_food(mut cmd: Commands, transform_q: Query<&Transform, Without<Food>>) 
 fn spawn_food(cmd: &mut Commands, transform_q: Query<&Transform, Without<Food>>) {
     let mut rng = rand::thread_rng();
 
-    let transform = 'outer: loop {
+    let transform = loop {
         let x = rng.gen_range(0..GRID_WIDTH as i32);
         let y = rng.gen_range(0..GRID_HEIGHT as i32);
         let food_pos = Vec3::new(x as f32, y as f32, 0.);
 
-        for segment_transform in &transform_q {
-            if segment_transform.translation == food_pos {
-                continue 'outer;
-            }
+        // Check that no other transforms are at the generated position
+        if transform_q.iter().all(|t| t.translation != food_pos) {
+            break Transform::from_translation(food_pos);
         }
-        break Transform::from_translation(food_pos);
     };
 
     cmd.spawn(SpriteBundle {
