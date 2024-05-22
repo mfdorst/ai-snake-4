@@ -6,6 +6,7 @@ use input::InputPlugin;
 use score::ScorePlugin;
 use snake::{SnakeMoveSet, SnakeMoveTimerTickSet, SnakePlugin};
 
+mod autopilot;
 mod camera;
 mod collision;
 mod constants;
