@@ -13,6 +13,7 @@ impl Plugin for AutopilotPlugin {
             .add_systems(Update, update_autopilot_button)
             .add_systems(Update, toggle_autopilot)
             .add_systems(Update, autopilot_snake)
+            .add_systems(Update, handle_button_click)
             .insert_resource(Autopilot(false));
     }
 }
@@ -23,6 +24,17 @@ pub struct Autopilot(pub bool);
 fn toggle_autopilot(mut autopilot: ResMut<Autopilot>, input: Res<ButtonInput<KeyCode>>) {
     if input.just_pressed(KeyCode::Space) {
         autopilot.0 = !autopilot.0;
+    }
+}
+
+fn handle_button_click(
+    mut autopilot: ResMut<Autopilot>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>)>,
+) {
+    for interaction in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+            autopilot.0 = !autopilot.0;
+        }
     }
 }
 
