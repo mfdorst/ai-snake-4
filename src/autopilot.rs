@@ -27,17 +27,13 @@ fn toggle_autopilot(mut autopilot: ResMut<Autopilot>, input: Res<ButtonInput<Key
 }
 
 fn setup_autopilot_button(mut cmd: Commands) {
-    cmd.spawn(Camera2dBundle::default());
     cmd.spawn(ButtonBundle {
         style: Style {
             flex_basis: Val::Px(150.0),
             flex_shrink: 0.,
             position_type: PositionType::Absolute,
-            position: UiRect {
-                left: Val::Px(10.0),
-                bottom: Val::Px(10.0),
-                ..default()
-            },
+            left: Val::Px(10.0),
+            bottom: Val::Px(10.0),
             ..default()
         },
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
@@ -54,6 +50,7 @@ fn setup_autopilot_button(mut cmd: Commands) {
         ));
     });
 }
+
 fn update_autopilot_button(
     autopilot: Res<Autopilot>,
     mut query: Query<&mut BackgroundColor, With<Button>>,
