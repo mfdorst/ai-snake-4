@@ -4,7 +4,6 @@ use crate::{
     snake::SnakeHead,
 };
 use bevy::prelude::*;
-use bevy::ui::{Size, Val};
 
 pub struct AutopilotPlugin;
 
@@ -30,10 +29,8 @@ fn toggle_autopilot(mut autopilot: ResMut<Autopilot>, input: Res<ButtonInput<Key
 fn setup_autopilot_button(mut cmd: Commands) {
     cmd.spawn(ButtonBundle {
         style: Style {
-            size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-            margin: UiRect::all(Val::Auto),
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
+            flex_basis: Val::Px(150.0),
+            flex_shrink: 0.,
             ..default()
         },
         background_color: Color::rgb(0.15, 0.15, 0.15).into(),
