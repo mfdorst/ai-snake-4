@@ -3,8 +3,8 @@ use camera::CameraPlugin;
 use collision::{CollisionPlugin, CollisionSet};
 use food::{EatSet, FoodPlugin};
 use input::InputPlugin;
-use snake::{SnakeMoveSet, SnakeMoveTimerTickSet, SnakePlugin};
 use score::ScorePlugin;
+use snake::{SnakeMoveSet, SnakeMoveTimerTickSet, SnakePlugin};
 
 mod camera;
 mod collision;
@@ -13,6 +13,8 @@ mod food;
 mod input;
 mod score;
 mod snake;
+
+use autopilot::AutopilotPlugin;
 
 fn main() {
     App::new()
@@ -24,6 +26,7 @@ fn main() {
             InputPlugin,
             ScorePlugin,
             SnakePlugin,
+            AutopilotPlugin,
         ))
         .configure_sets(
             Update,
