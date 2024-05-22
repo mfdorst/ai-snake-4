@@ -1,8 +1,10 @@
 use crate::{
-    input::CurrentDirection,
-    snake::{NextDirection, SnakeHead},
+    food::Food,
+    input::{CurrentDirection, NextDirection},
+    snake::SnakeHead,
 };
 use bevy::prelude::*;
+use bevy::ui::{Size, Val};
 
 pub struct AutopilotPlugin;
 
