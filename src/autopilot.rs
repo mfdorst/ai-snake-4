@@ -21,6 +21,9 @@ impl Plugin for AutopilotPlugin {
 #[derive(Resource)]
 pub struct Autopilot(pub bool);
 
+#[derive(Component)]
+struct AutopilotButtonText;
+
 fn toggle_autopilot(mut autopilot: ResMut<Autopilot>, input: Res<ButtonInput<KeyCode>>) {
     if input.just_pressed(KeyCode::Space) {
         autopilot.0 = !autopilot.0;
@@ -54,36 +57,28 @@ fn setup_autopilot_button(mut cmd: Commands) {
         ..default()
     })
     .with_children(|parent| {
-        parent.spawn(TextBundle::from_section(
-            "Autopilot: Off",
-            TextStyle {
-                font_size: 40.0,
-                color: Color::rgb(1.0, 1.0, 1.0),
-                ..default()
-            },
-        ));
-    })
-    .insert(Name::new("Autopilot Button")); // Add this line to give the button a name
+        parent
+            .spawn(TextBundle::from_section(
+                "Autopilot: Off",
+                TextStyle {
+                    font_size: 40.0,
+                    color: Color::rgb(1.0, 1.0, 1.0),
+                    ..default()
+                },
+            ))
+            .insert(AutopilotButtonText);
+    });
 }
 
 fn update_autopilot_button(
     autopilot: Res<Autopilot>,
-    mut query: Query<(Entity, &mut Text), With<Parent>>,
-    parent_query: Query<&Parent>,
-    name_query: Query<&Name>,
+    mut query: Query<&mut Text, With<AutopilotButtonText>>,
 ) {
-    for (entity, mut text) in query.iter_mut() {
-        if let Ok(parent) = parent_query.get(entity) {
-            if let Ok(name) = name_query.get(parent.get()) {
-                if name.as_str() == "Autopilot Button" {
-                    if autopilot.0 {
-                        text.sections[0].value = "Autopilot: On".to_string();
-                    } else {
-                        text.sections[0].value = "Autopilot: Off".to_string();
-                    }
-                }
-            }
-        }
+    let mut text = query.single_mut();
+    if autopilot.0 {
+        text.sections[0].value = "Autopilot: On".to_string();
+    } else {
+        text.sections[0].value = "Autopilot: Off".to_string();
     }
 }
 
