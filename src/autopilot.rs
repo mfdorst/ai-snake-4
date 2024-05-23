@@ -46,32 +46,44 @@ fn setup_autopilot_button(mut cmd: Commands) {
             position_type: PositionType::Absolute,
             left: Val::Px(10.0),
             bottom: Val::Px(10.0),
+            border: UiRect::all(Val::Px(2.0)),
             ..default()
         },
-        background_color: Color::rgb(0.15, 0.15, 0.15).into(),
+        background_color: Color::NONE.into(),
+        border_color: Color::rgb(1.0, 1.0, 1.0).into(),
         ..default()
     })
     .with_children(|parent| {
         parent.spawn(TextBundle::from_section(
-            "Toggle Autopilot",
+            "Autopilot: Off",
             TextStyle {
                 font_size: 40.0,
-                color: Color::rgb(0.9, 0.9, 0.9),
+                color: Color::rgb(1.0, 1.0, 1.0),
                 ..default()
             },
         ));
-    });
+    })
+    .insert(Name::new("Autopilot Button")); // Add this line to give the button a name
 }
 
 fn update_autopilot_button(
     autopilot: Res<Autopilot>,
-    mut query: Query<&mut BackgroundColor, With<Button>>,
+    mut query: Query<(Entity, &mut Text), With<Parent>>,
+    parent_query: Query<&Parent>,
+    name_query: Query<&Name>,
 ) {
-    let mut color = query.single_mut();
-    if autopilot.0 {
-        *color = Color::rgb(0.0, 1.0, 0.0).into(); // Green
-    } else {
-        *color = Color::rgb(0.15, 0.15, 0.15).into(); // Gray
+    for (entity, mut text) in query.iter_mut() {
+        if let Ok(parent) = parent_query.get(entity) {
+            if let Ok(name) = name_query.get(parent.get()) {
+                if name.as_str() == "Autopilot Button" {
+                    if autopilot.0 {
+                        text.sections[0].value = "Autopilot: On".to_string();
+                    } else {
+                        text.sections[0].value = "Autopilot: Off".to_string();
+                    }
+                }
+            }
+        }
     }
 }
 
