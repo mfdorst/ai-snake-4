@@ -91,22 +91,22 @@ fn autopilot_snake(
     body_q: Query<&Transform, Without<Food>>,
 ) {
     if autopilot.0 {
-        let (mut next_direction, current_direction) = q.single_mut();
+        let (mut next_direction, _) = q.single_mut();
         let head_transform = head_transform_q.single();
         let food_transform = food_q.single();
 
-        let start = (
+        let start = IVec2::new(
             head_transform.translation.x as i32,
             head_transform.translation.y as i32,
         );
-        let end = (
+        let end = IVec2::new(
             food_transform.translation.x as i32,
             food_transform.translation.y as i32,
         );
 
-        let body_positions: Vec<(i32, i32)> = body_q
+        let body_positions: Vec<IVec2> = body_q
             .iter()
-            .map(|t| (t.translation.x as i32, t.translation.y as i32))
+            .map(|t| IVec2::new(t.translation.x as i32, t.translation.y as i32))
             .collect();
 
         let mut open_list = vec![start];
@@ -131,28 +131,24 @@ fn autopilot_snake(
 
                 if path.len() > 1 {
                     let next_pos = path[1];
-                    let dx = next_pos.0 - start.0;
-                    let dy = next_pos.1 - start.1;
-                    if dx > 0 && current_direction.0 != Direction2d::NEG_X {
-                        next_direction.0 = Direction2d::X;
-                    } else if dx < 0 && current_direction.0 != Direction2d::X {
-                        next_direction.0 = Direction2d::NEG_X;
-                    } else if dy > 0 && current_direction.0 != Direction2d::NEG_Y {
-                        next_direction.0 = Direction2d::Y;
-                    } else if dy < 0 && current_direction.0 != Direction2d::Y {
-                        next_direction.0 = Direction2d::NEG_Y;
-                    }
+                    let direction = (next_pos - start).as_vec2().normalize_or_zero();
+                    next_direction.0 = Direction2d::new_unchecked(direction);
                 }
 
                 return;
             }
 
-            for (dx, dy) in &[(-1, 0), (1, 0), (0, -1), (0, 1)] {
-                let neighbor = (current.0 + dx, current.1 + dy);
-                if neighbor.0 < 0
-                    || neighbor.0 >= GRID_WIDTH as i32
-                    || neighbor.1 < 0
-                    || neighbor.1 >= GRID_HEIGHT as i32
+            for direction in &[
+                IVec2::new(-1, 0),
+                IVec2::new(1, 0),
+                IVec2::new(0, -1),
+                IVec2::new(0, 1),
+            ] {
+                let neighbor = current + *direction;
+                if neighbor.x < 0
+                    || neighbor.x >= GRID_WIDTH as i32
+                    || neighbor.y < 0
+                    || neighbor.y >= GRID_HEIGHT as i32
                 {
                     continue;
                 }
@@ -174,6 +170,6 @@ fn autopilot_snake(
     }
 }
 
-fn distance((x1, y1): (i32, i32), (x2, y2): (i32, i32)) -> i32 {
-    (x1 - x2).abs() + (y1 - y2).abs()
+fn distance(a: IVec2, b: IVec2) -> i32 {
+    (a.x - b.x).abs() + (a.y - b.y).abs()
 }
