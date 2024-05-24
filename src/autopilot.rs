@@ -95,18 +95,12 @@ fn autopilot_snake(
         let head_transform = head_transform_q.single();
         let food_transform = food_q.single();
 
-        let start = IVec2::new(
-            head_transform.translation.x as i32,
-            head_transform.translation.y as i32,
-        );
-        let end = IVec2::new(
-            food_transform.translation.x as i32,
-            food_transform.translation.y as i32,
-        );
+        let start = head_transform.translation.xy().as_ivec2();
+        let end = food_transform.translation.xy().as_ivec2();
 
-        let body_positions: Vec<IVec2> = body_q
+        let body_positions: Vec<_> = body_q
             .iter()
-            .map(|t| IVec2::new(t.translation.x as i32, t.translation.y as i32))
+            .map(|t| t.translation.xy().as_ivec2())
             .collect();
 
         let mut open_list = vec![start];
@@ -117,8 +111,7 @@ fn autopilot_snake(
         g_score.insert(start, 0);
         f_score.insert(start, distance(start, end));
 
-        while !open_list.is_empty() {
-            let mut current = *open_list.iter().min_by_key(|&&pos| f_score[&pos]).unwrap();
+        while let Some(mut current) = open_list.iter().min_by_key(|&pos| f_score[pos]).cloned() {
             open_list.retain(|&pos| pos != current);
 
             if current == end {
@@ -129,9 +122,8 @@ fn autopilot_snake(
                 }
                 path.reverse();
 
-                if path.len() > 1 {
-                    let next_pos = path[1];
-                    let direction = (next_pos - start).as_vec2().normalize_or_zero();
+                if let Some(next_pos) = path.get(1) {
+                    let direction = (*next_pos - start).as_vec2().normalize_or_zero();
                     next_direction.0 = Direction2d::new_unchecked(direction);
                 }
 
