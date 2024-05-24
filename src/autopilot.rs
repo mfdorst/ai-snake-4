@@ -5,6 +5,10 @@ use crate::{
     snake::SnakeHead,
 };
 use bevy::prelude::*;
+use std::{
+    cmp::Ordering,
+    collections::{BinaryHeap, HashMap},
+};
 
 pub struct AutopilotPlugin;
 
@@ -83,6 +87,31 @@ fn update_autopilot_button(
     }
 }
 
+struct Node {
+    pos: IVec2,
+    f_score: i32,
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Node) -> bool {
+        self.f_score == other.f_score
+    }
+}
+
+impl Eq for Node {}
+
+impl PartialOrd for Node {
+    fn partial_cmp(&self, other: &Node) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Node {
+    fn cmp(&self, other: &Node) -> Ordering {
+        other.f_score.cmp(&self.f_score)
+    }
+}
+
 fn autopilot_snake(
     autopilot: Res<Autopilot>,
     mut q: Query<(&mut NextDirection, &CurrentDirection), With<SnakeHead>>,
@@ -103,17 +132,22 @@ fn autopilot_snake(
             .map(|t| t.translation.xy().as_ivec2())
             .collect();
 
-        let mut open_list = vec![start];
-        let mut came_from = std::collections::HashMap::new();
-        let mut g_score = std::collections::HashMap::new();
-        let mut f_score = std::collections::HashMap::new();
+        let mut open_list = BinaryHeap::new();
+        let mut came_from = HashMap::new();
+        let mut g_score = HashMap::new();
+        let mut f_score = HashMap::new();
 
+        open_list.push(Node {
+            pos: start,
+            f_score: 0,
+        });
         g_score.insert(start, 0);
         f_score.insert(start, distance(start, end));
 
-        while let Some(mut current) = open_list.iter().min_by_key(|&pos| f_score[pos]).cloned() {
-            open_list.retain(|&pos| pos != current);
-
+        while let Some(Node {
+            pos: mut current, ..
+        }) = open_list.pop()
+        {
             if current == end {
                 let mut path = vec![current];
                 while let Some(&previous) = came_from.get(&current) {
@@ -152,10 +186,12 @@ fn autopilot_snake(
                 if !g_score.contains_key(&neighbor) || tentative_g_score < g_score[&neighbor] {
                     came_from.insert(neighbor, current);
                     g_score.insert(neighbor, tentative_g_score);
-                    f_score.insert(neighbor, tentative_g_score + distance(neighbor, end));
-                    if !open_list.contains(&neighbor) {
-                        open_list.push(neighbor);
-                    }
+                    let new_f_score = tentative_g_score + distance(neighbor, end);
+                    f_score.insert(neighbor, new_f_score);
+                    open_list.push(Node {
+                        pos: neighbor,
+                        f_score: new_f_score,
+                    });
                 }
             }
         }
