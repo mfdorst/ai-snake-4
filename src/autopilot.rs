@@ -132,17 +132,15 @@ fn autopilot_snake(
             .map(|t| t.translation.xy().as_ivec2())
             .collect();
 
-        let mut open_list = BinaryHeap::new();
-        let mut came_from = HashMap::new();
-        let mut g_score = HashMap::new();
-        let mut f_score = HashMap::new();
+        let mut nodes = HashMap::new();
 
+        nodes.insert(start, (0, distance(start, end), None));
+
+        let mut open_list = BinaryHeap::new();
         open_list.push(Node {
             pos: start,
-            f_score: 0,
+            f_score: distance(start, end),
         });
-        g_score.insert(start, 0);
-        f_score.insert(start, distance(start, end));
 
         while let Some(Node {
             pos: mut current, ..
@@ -150,9 +148,9 @@ fn autopilot_snake(
         {
             if current == end {
                 let mut path = vec![current];
-                while let Some(&previous) = came_from.get(&current) {
-                    path.push(previous);
-                    current = previous;
+                while let Some((_, _, Some(previous))) = nodes.get(&current) {
+                    path.push(*previous);
+                    current = *previous;
                 }
                 path.reverse();
 
@@ -182,15 +180,15 @@ fn autopilot_snake(
                     continue;
                 }
 
-                let tentative_g_score = g_score[&current] + 1;
-                if !g_score.contains_key(&neighbor) || tentative_g_score < g_score[&neighbor] {
-                    came_from.insert(neighbor, current);
-                    g_score.insert(neighbor, tentative_g_score);
-                    let new_f_score = tentative_g_score + distance(neighbor, end);
-                    f_score.insert(neighbor, new_f_score);
+                let tentative_g_score = nodes[&current].0 + 1;
+                if !nodes.contains_key(&neighbor) || tentative_g_score < nodes[&neighbor].0 {
+                    nodes.insert(
+                        neighbor,
+                        (tentative_g_score, distance(neighbor, end), Some(current)),
+                    );
                     open_list.push(Node {
                         pos: neighbor,
-                        f_score: new_f_score,
+                        f_score: tentative_g_score + distance(neighbor, end),
                     });
                 }
             }
