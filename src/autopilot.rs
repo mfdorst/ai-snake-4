@@ -39,8 +39,8 @@ fn handle_button_click(
     mut autopilot: ResMut<Autopilot>,
     mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>)>,
 ) {
-    for interaction in &mut interaction_query {
-        if *interaction == Interaction::Pressed {
+    for &interaction in &mut interaction_query {
+        if interaction == Interaction::Pressed {
             autopilot.0 = !autopilot.0;
         }
     }
@@ -152,14 +152,14 @@ fn autopilot_snake(
             // If we've reached the end node, construct the path, update the direction, and return
             if current == end {
                 let mut path = vec![current];
-                while let Some((_, _, Some(previous))) = cells.get(&current) {
-                    path.push(*previous);
-                    current = *previous;
+                while let Some(&(_, _, Some(previous))) = cells.get(&current) {
+                    path.push(previous);
+                    current = previous;
                 }
                 path.reverse();
 
-                if let Some(next_pos) = path.get(1) {
-                    let direction = (*next_pos - start).as_vec2().normalize_or_zero();
+                if let Some(&next_pos) = path.get(1) {
+                    let direction = (next_pos - start).as_vec2().normalize_or_zero();
                     next_direction.0 = Direction2d::new_unchecked(direction);
                 }
 
