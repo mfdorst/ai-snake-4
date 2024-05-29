@@ -136,72 +136,65 @@ fn autopilot_snake(
             .map(|t| t.translation.xy().as_ivec2())
             .collect();
 
-        let mut cells = HashMap::new();
-        let mut open_list = BinaryHeap::new();
+        if let Some(direction) = find_path(start, end, body_positions) {
+            next_direction.0 = Direction2d::new_unchecked(direction.as_vec2().normalize_or_zero());
+        }
+    }
+}
 
-        cells.insert(start, (0, 0, None));
-        open_list.push(Node {
-            pos: start,
-            f_score: 0,
-        });
+fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Option<IVec2> {
+    let mut cells = HashMap::new();
+    let mut open_list = BinaryHeap::new();
 
-        while let Some(Node {
-            pos: mut current, ..
-        }) = open_list.pop()
-        {
-            // If we've reached the end node, construct the path, update the direction, and return
-            if current == end {
-                let mut path = vec![current];
-                while let Some(&(_, _, Some(previous))) = cells.get(&current) {
-                    path.push(previous);
-                    current = previous;
-                }
-                path.reverse();
+    cells.insert(start, (0, 0, None));
+    open_list.push(Node {
+        pos: start,
+        f_score: 0,
+    });
 
-                if let Some(&next_pos) = path.get(1) {
-                    let direction = (next_pos - start).as_vec2().normalize_or_zero();
-                    next_direction.0 = Direction2d::new_unchecked(direction);
-                }
+    while let Some(Node {
+        pos: mut current, ..
+    }) = open_list.pop()
+    {
+        if current == end {
+            let mut path = vec![current];
+            while let Some(&(_, _, Some(previous))) = cells.get(&current) {
+                path.push(previous);
+                current = previous;
+            }
+            path.reverse();
+            return path.get(1).map(|&next_pos| next_pos - start);
+        }
 
-                return;
+        let neighbors = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+            .into_iter()
+            .map(|(x, y)| IVec2::new(x, y))
+            .map(|direction| current + direction);
+
+        for neighbor in neighbors {
+            if body_positions.contains(&neighbor)
+                || neighbor.x < 0
+                || neighbor.y < 0
+                || neighbor.x >= GRID_WIDTH as i32
+                || neighbor.y >= GRID_HEIGHT as i32
+            {
+                continue;
             }
 
-            // Explore the neighbors of the current cell
-            let neighbors = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-                .into_iter()
-                .map(|(x, y)| IVec2::new(x, y))
-                .map(|direction| current + direction);
+            let g_score = cells[&current].0 + 1;
+            let h_score = manhattan_distance(neighbor, end);
+            let f_score = g_score + h_score;
 
-            for neighbor in neighbors {
-                // Check that neighboring cell is open for traversal
-                if body_positions.contains(&neighbor)
-                    || neighbor.x < 0
-                    || neighbor.y < 0
-                    || neighbor.x >= GRID_WIDTH as i32
-                    || neighbor.y >= GRID_HEIGHT as i32
-                {
-                    continue;
-                }
-
-                // Each cell has the following scores:
-                // G score: the distance from the start to the cell
-                let g_score = cells[&current].0 + 1;
-                // H score: heuristic (estimate) for the distance from the cell to the end
-                let h_score = manhattan_distance(neighbor, end);
-                // F score: the estimated total distance from start to end via the current path to the cell
-                let f_score = g_score + h_score;
-
-                // If the neighbor has not been visited before, or the new path is shorter
-                if !cells.contains_key(&neighbor) || g_score < cells[&neighbor].0 {
-                    cells.insert(neighbor, (g_score, h_score, Some(current)));
-                    open_list.push(Node {
-                        pos: neighbor,
-                        f_score,
-                    });
-                }
+            if !cells.contains_key(&neighbor) || g_score < cells[&neighbor].0 {
+                cells.insert(neighbor, (g_score, h_score, Some(current)));
+                open_list.push(Node {
+                    pos: neighbor,
+                    f_score,
+                });
             }
         }
     }
+    None
 }
 
 fn manhattan_distance(a: IVec2, b: IVec2) -> i32 {
