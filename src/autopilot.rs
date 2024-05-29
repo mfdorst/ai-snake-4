@@ -136,13 +136,14 @@ fn autopilot_snake(
             .map(|t| t.translation.xy().as_ivec2())
             .collect();
 
-        if let Some(direction) = find_path(start, end, body_positions) {
-            next_direction.0 = Direction2d::new_unchecked(direction.as_vec2().normalize_or_zero());
+        if let Some(&next_pos) = find_path(start, end, body_positions).get(1) {
+            next_direction.0 =
+                Direction2d::new_unchecked((next_pos - start).as_vec2().normalize_or_zero());
         }
     }
 }
 
-fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Option<IVec2> {
+fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2> {
     let mut cells = HashMap::new();
     let mut open_list = BinaryHeap::new();
 
@@ -163,7 +164,7 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Option<IVe
                 current = previous;
             }
             path.reverse();
-            return path.get(1).map(|&next_pos| next_pos - start);
+            return path;
         }
 
         let neighbors = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -194,7 +195,7 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Option<IVe
             }
         }
     }
-    None
+    vec![]
 }
 
 fn manhattan_distance(a: IVec2, b: IVec2) -> i32 {
