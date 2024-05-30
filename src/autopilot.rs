@@ -149,13 +149,14 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2>
     let mut cells = HashMap::new();
     let mut open_list = BinaryHeap::new();
 
+    // Start with the end position
     let node = Node {
-        position: start,
+        position: end,
         previous: None,
         f_score: 0,
         g_score: 0,
     };
-    cells.insert(start, node);
+    cells.insert(end, node);
     open_list.push(node);
 
     while let Some(Node {
@@ -163,7 +164,9 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2>
         ..
     }) = open_list.pop()
     {
-        if current == end {
+        // Reached the start, reconstruct path
+        if current == start {
+            println!("Found start");
             let mut path = vec![current];
             while let Some(&Node {
                 previous: Some(previous),
@@ -173,8 +176,7 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2>
                 path.push(previous);
                 current = previous;
             }
-            path.reverse();
-            return path;
+            return path; // No need to reverse anymore
         }
 
         let neighbors = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -183,7 +185,7 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2>
             .map(|direction| current + direction);
 
         for neighbor in neighbors {
-            if body_positions.contains(&neighbor)
+            if body_positions.contains(&neighbor) && neighbor != start
                 || neighbor.x < 0
                 || neighbor.y < 0
                 || neighbor.x >= GRID_WIDTH as i32
@@ -193,7 +195,7 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2>
             }
 
             let g_score = cells[&current].g_score + 1;
-            let h_score = manhattan_distance(neighbor, end);
+            let h_score = manhattan_distance(neighbor, start); // Heuristic distance to start, rather than end
             let f_score = g_score + h_score;
 
             if !cells.contains_key(&neighbor) || g_score < cells[&neighbor].g_score {
@@ -208,6 +210,7 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2>
             }
         }
     }
+    println!("No path found");
     vec![]
 }
 
