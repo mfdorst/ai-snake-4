@@ -87,14 +87,17 @@ fn update_autopilot_button(
     }
 }
 
+#[derive(Copy, Clone)]
 struct Node {
-    pos: IVec2,
+    position: IVec2,
+    previous: Option<IVec2>,
     f_score: i32,
+    g_score: i32,
 }
 
 impl PartialEq for Node {
     fn eq(&self, other: &Node) -> bool {
-        self.f_score == other.f_score
+        self.position == other.position
     }
 }
 
@@ -111,8 +114,8 @@ impl Ord for Node {
         other
             .f_score
             .cmp(&self.f_score)
-            .then(other.pos.x.cmp(&self.pos.x))
-            .then(other.pos.y.cmp(&self.pos.y))
+            .then(other.position.x.cmp(&self.position.x))
+            .then(other.position.y.cmp(&self.position.y))
     }
 }
 
@@ -137,8 +140,7 @@ fn autopilot_snake(
             .collect();
 
         if let Some(&next_pos) = find_path(start, end, body_positions).get(1) {
-            next_direction.0 =
-                Direction2d::new_unchecked((next_pos - start).as_vec2().normalize_or_zero());
+            next_direction.0 = Direction2d::new_unchecked((next_pos - start).as_vec2());
         }
     }
 }
@@ -147,19 +149,27 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2>
     let mut cells = HashMap::new();
     let mut open_list = BinaryHeap::new();
 
-    cells.insert(start, (0, 0, None));
-    open_list.push(Node {
-        pos: start,
+    let node = Node {
+        position: start,
+        previous: None,
         f_score: 0,
-    });
+        g_score: 0,
+    };
+    cells.insert(start, node);
+    open_list.push(node);
 
     while let Some(Node {
-        pos: mut current, ..
+        position: mut current,
+        ..
     }) = open_list.pop()
     {
         if current == end {
             let mut path = vec![current];
-            while let Some(&(_, _, Some(previous))) = cells.get(&current) {
+            while let Some(&Node {
+                previous: Some(previous),
+                ..
+            }) = cells.get(&current)
+            {
                 path.push(previous);
                 current = previous;
             }
@@ -182,16 +192,19 @@ fn find_path(start: IVec2, end: IVec2, body_positions: Vec<IVec2>) -> Vec<IVec2>
                 continue;
             }
 
-            let g_score = cells[&current].0 + 1;
+            let g_score = cells[&current].g_score + 1;
             let h_score = manhattan_distance(neighbor, end);
             let f_score = g_score + h_score;
 
-            if !cells.contains_key(&neighbor) || g_score < cells[&neighbor].0 {
-                cells.insert(neighbor, (g_score, h_score, Some(current)));
-                open_list.push(Node {
-                    pos: neighbor,
+            if !cells.contains_key(&neighbor) || g_score < cells[&neighbor].g_score {
+                let node = Node {
+                    position: neighbor,
+                    previous: Some(current),
                     f_score,
-                });
+                    g_score,
+                };
+                cells.insert(neighbor, node);
+                open_list.push(node);
             }
         }
     }
