@@ -78,14 +78,15 @@ const CARDINAL_DIRECTIONS: [Direction2d; 4] = [
 
 fn autopilot_snake(
     autopilot: Res<Autopilot>,
-    mut ev_move: EventReader<SnakeMoveEvent>,
     body_q: Query<&Transform, Without<Food>>,
     food_q: Query<&Transform, With<Food>>,
     mut head_q: Query<(&Transform, &mut NextDirection), With<SnakeHead>>,
+    mut ev_move: EventReader<SnakeMoveEvent>,
 ) {
     if !autopilot.0 || ev_move.is_empty() {
         return;
     }
+
     ev_move.clear();
 
     let (head_transform, mut next_direction) = head_q.single_mut();
@@ -101,29 +102,27 @@ fn autopilot_snake(
 
     if let Some(&next_pos) = find_path(start, end, &body_positions).get(1) {
         next_direction.0 = Direction2d::new_unchecked((next_pos - start).as_vec2());
-    } else {
-        // No path found – survival mode
+    } else if let Some(direction) = survival_mode(start, &body_positions) {
+        next_direction.0 = direction;
+    }
+}
 
-        let mut largest_area = 0;
-        let mut best_direction = None;
+fn survival_mode(start: IVec2, body_positions: &[IVec2]) -> Option<Direction2d> {
+    let mut largest_area = 0;
+    let mut best_direction = None;
 
-        for direction in CARDINAL_DIRECTIONS {
-            let next_head_pos = head_transform.translation + direction.extend(0.);
-            let next_pos = next_head_pos.xy().as_ivec2();
+    for direction in CARDINAL_DIRECTIONS {
+        let next_pos = start + direction.as_ivec2();
 
-            if is_valid_move(next_pos, &body_positions) {
-                let area = flood_fill(next_pos, &body_positions);
-                if area > largest_area {
-                    largest_area = area;
-                    best_direction = Some(direction);
-                }
+        if is_valid_move(next_pos, &body_positions) {
+            let area = flood_fill(next_pos, &body_positions);
+            if area > largest_area {
+                largest_area = area;
+                best_direction = Some(direction);
             }
         }
-
-        if let Some(direction) = best_direction {
-            next_direction.0 = direction;
-        }
     }
+    best_direction
 }
 
 fn find_path(start: IVec2, end: IVec2, body_positions: &[IVec2]) -> Vec<IVec2> {
@@ -193,17 +192,17 @@ fn find_path(start: IVec2, end: IVec2, body_positions: &[IVec2]) -> Vec<IVec2> {
 }
 
 fn flood_fill(start: IVec2, body_positions: &[IVec2]) -> usize {
-    let mut queue = vec![start];
+    let mut stack = vec![start];
     let mut visited = HashSet::new();
     let mut area = 0;
 
-    while let Some(pos) = queue.pop() {
+    while let Some(pos) = stack.pop() {
         if !visited.contains(&pos) && is_valid_move(pos, &body_positions) {
             visited.insert(pos);
             area += 1;
 
             for direction in CARDINAL_DIRECTIONS {
-                queue.push(pos + direction.as_ivec2());
+                stack.push(pos + direction.as_ivec2());
             }
         }
     }
