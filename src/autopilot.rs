@@ -1,7 +1,7 @@
 use crate::{
     constants::*,
     food::Food,
-    input::{CurrentDirection, NextDirection},
+    input::NextDirection,
     snake::{SnakeHead, SnakeMoveEvent},
 };
 use bevy::prelude::*;
@@ -15,16 +15,18 @@ pub struct AutopilotPlugin;
 impl Plugin for AutopilotPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_autopilot_button)
-            .add_systems(Update, update_autopilot_button)
-            .add_systems(Update, toggle_autopilot)
-            .add_systems(Update, autopilot_snake.in_set(AutopilotSet))
-            .add_systems(Update, handle_button_click)
+            .add_systems(
+                Update,
+                (
+                    autopilot_snake.in_set(AutopilotSet),
+                    handle_button_click,
+                    toggle_autopilot,
+                    update_autopilot_button,
+                ),
+            )
             .insert_resource(Autopilot(false));
     }
 }
-
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AutopilotSet;
 
 #[derive(Resource)]
 pub struct Autopilot(pub bool);
@@ -32,63 +34,8 @@ pub struct Autopilot(pub bool);
 #[derive(Component)]
 struct AutopilotButtonText;
 
-fn toggle_autopilot(mut autopilot: ResMut<Autopilot>, input: Res<ButtonInput<KeyCode>>) {
-    if input.just_pressed(KeyCode::Space) {
-        autopilot.0 = !autopilot.0;
-    }
-}
-
-fn handle_button_click(
-    mut autopilot: ResMut<Autopilot>,
-    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>)>,
-) {
-    for &interaction in &mut interaction_query {
-        if interaction == Interaction::Pressed {
-            autopilot.0 = !autopilot.0;
-        }
-    }
-}
-
-fn setup_autopilot_button(mut cmd: Commands) {
-    cmd.spawn(ButtonBundle {
-        style: Style {
-            flex_basis: Val::Px(150.0),
-            flex_shrink: 0.,
-            position_type: PositionType::Absolute,
-            left: Val::Px(10.0),
-            bottom: Val::Px(10.0),
-            border: UiRect::all(Val::Px(2.0)),
-            ..default()
-        },
-        background_color: Color::NONE.into(),
-        border_color: Color::rgb(1.0, 1.0, 1.0).into(),
-        ..default()
-    })
-    .with_children(|parent| {
-        parent
-            .spawn(TextBundle::from_section(
-                "Autopilot: Off",
-                TextStyle {
-                    font_size: 40.0,
-                    color: Color::rgb(1.0, 1.0, 1.0),
-                    ..default()
-                },
-            ))
-            .insert(AutopilotButtonText);
-    });
-}
-
-fn update_autopilot_button(
-    autopilot: Res<Autopilot>,
-    mut query: Query<&mut Text, With<AutopilotButtonText>>,
-) {
-    let mut text = query.single_mut();
-    if autopilot.0 {
-        text.sections[0].value = "Autopilot: On".to_string();
-    } else {
-        text.sections[0].value = "Autopilot: Off".to_string();
-    }
-}
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AutopilotSet;
 
 #[derive(Copy, Clone)]
 struct Node {
@@ -98,19 +45,7 @@ struct Node {
     g_score: i32,
 }
 
-impl PartialEq for Node {
-    fn eq(&self, other: &Node) -> bool {
-        self.position == other.position
-    }
-}
-
 impl Eq for Node {}
-
-impl PartialOrd for Node {
-    fn partial_cmp(&self, other: &Node) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
 
 impl Ord for Node {
     fn cmp(&self, other: &Node) -> Ordering {
@@ -122,92 +57,73 @@ impl Ord for Node {
     }
 }
 
+impl PartialEq for Node {
+    fn eq(&self, other: &Node) -> bool {
+        self.position == other.position
+    }
+}
+
+impl PartialOrd for Node {
+    fn partial_cmp(&self, other: &Node) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+const CARDINAL_DIRECTIONS: [Direction2d; 4] = [
+    Direction2d::X,
+    Direction2d::NEG_X,
+    Direction2d::Y,
+    Direction2d::NEG_Y,
+];
+
 fn autopilot_snake(
     autopilot: Res<Autopilot>,
-    mut q: Query<(&mut NextDirection, &CurrentDirection), With<SnakeHead>>,
-    food_q: Query<&Transform, With<Food>>,
-    head_transform_q: Query<&Transform, With<SnakeHead>>,
-    body_q: Query<&Transform, Without<Food>>,
     mut ev_move: EventReader<SnakeMoveEvent>,
+    body_q: Query<&Transform, Without<Food>>,
+    food_q: Query<&Transform, With<Food>>,
+    mut head_q: Query<(&Transform, &mut NextDirection), With<SnakeHead>>,
 ) {
-    if autopilot.0 {
-        for _ in ev_move.read() {
-            let (mut next_direction, _) = q.single_mut();
-            let head_transform = head_transform_q.single();
-            let food_transform = food_q.single();
+    if !autopilot.0 || ev_move.is_empty() {
+        return;
+    }
+    ev_move.clear();
 
-            let start = head_transform.translation.xy().as_ivec2();
-            let end = food_transform.translation.xy().as_ivec2();
+    let (head_transform, mut next_direction) = head_q.single_mut();
+    let food_transform = food_q.single();
 
-            let body_positions: Vec<_> = body_q
-                .iter()
-                .map(|t| t.translation.xy().as_ivec2())
-                .collect();
+    let start = head_transform.translation.xy().as_ivec2();
+    let end = food_transform.translation.xy().as_ivec2();
 
-            if let Some(&next_pos) = find_path(start, end, &body_positions).get(1) {
-                next_direction.0 = Direction2d::new_unchecked((next_pos - start).as_vec2());
-            } else {
-                // No path found – survival mode
+    let body_positions: Vec<_> = body_q
+        .iter()
+        .map(|t| t.translation.xy().as_ivec2())
+        .collect();
 
-                let mut largest_area = 0;
-                let mut best_direction = None;
+    if let Some(&next_pos) = find_path(start, end, &body_positions).get(1) {
+        next_direction.0 = Direction2d::new_unchecked((next_pos - start).as_vec2());
+    } else {
+        // No path found – survival mode
 
-                for direction in [
-                    Direction2d::X,
-                    Direction2d::NEG_X,
-                    Direction2d::Y,
-                    Direction2d::NEG_Y,
-                ] {
-                    let next_head_pos = head_transform.translation + direction.extend(0.);
-                    let next_pos = next_head_pos.xy().as_ivec2();
+        let mut largest_area = 0;
+        let mut best_direction = None;
 
-                    if is_valid_move(next_pos, &body_positions) {
-                        let area = flood_fill(next_pos, &body_positions);
-                        if area > largest_area {
-                            largest_area = area;
-                            best_direction = Some(direction);
-                        }
-                    }
-                }
+        for direction in CARDINAL_DIRECTIONS {
+            let next_head_pos = head_transform.translation + direction.extend(0.);
+            let next_pos = next_head_pos.xy().as_ivec2();
 
-                if let Some(direction) = best_direction {
-                    next_direction.0 = direction;
+            if is_valid_move(next_pos, &body_positions) {
+                let area = flood_fill(next_pos, &body_positions);
+                if area > largest_area {
+                    largest_area = area;
+                    best_direction = Some(direction);
                 }
             }
         }
-    }
-}
 
-fn is_valid_move(pos: IVec2, body_positions: &[IVec2]) -> bool {
-    pos.x >= 0
-        && pos.x < GRID_WIDTH as i32
-        && pos.y >= 0
-        && pos.y < GRID_HEIGHT as i32
-        && !body_positions.contains(&pos)
-}
-
-fn flood_fill(start: IVec2, body_positions: &[IVec2]) -> usize {
-    let mut queue = vec![start];
-    let mut visited = HashSet::new();
-    let mut area = 0;
-
-    while let Some(pos) = queue.pop() {
-        if !visited.contains(&pos) && is_valid_move(pos, &body_positions) {
-            visited.insert(pos);
-            area += 1;
-
-            for direction in [
-                Direction2d::X,
-                Direction2d::NEG_X,
-                Direction2d::Y,
-                Direction2d::NEG_Y,
-            ] {
-                queue.push(pos + direction.as_ivec2());
-            }
+        if let Some(direction) = best_direction {
+            next_direction.0 = direction;
         }
     }
-
-    area
 }
 
 fn find_path(start: IVec2, end: IVec2, body_positions: &[IVec2]) -> Vec<IVec2> {
@@ -243,10 +159,9 @@ fn find_path(start: IVec2, end: IVec2, body_positions: &[IVec2]) -> Vec<IVec2> {
             return path;
         }
 
-        let neighbors = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-            .into_iter()
-            .map(|(x, y)| IVec2::new(x, y))
-            .map(|direction| current + direction);
+        let neighbors = CARDINAL_DIRECTIONS
+            .iter()
+            .map(|direction| current + direction.as_ivec2());
 
         for neighbor in neighbors {
             if body_positions.contains(&neighbor) && neighbor != start
@@ -277,6 +192,91 @@ fn find_path(start: IVec2, end: IVec2, body_positions: &[IVec2]) -> Vec<IVec2> {
     vec![]
 }
 
+fn flood_fill(start: IVec2, body_positions: &[IVec2]) -> usize {
+    let mut queue = vec![start];
+    let mut visited = HashSet::new();
+    let mut area = 0;
+
+    while let Some(pos) = queue.pop() {
+        if !visited.contains(&pos) && is_valid_move(pos, &body_positions) {
+            visited.insert(pos);
+            area += 1;
+
+            for direction in CARDINAL_DIRECTIONS {
+                queue.push(pos + direction.as_ivec2());
+            }
+        }
+    }
+
+    area
+}
+
+fn handle_button_click(
+    mut autopilot: ResMut<Autopilot>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>)>,
+) {
+    for &interaction in &mut interaction_query {
+        if interaction == Interaction::Pressed {
+            autopilot.0 = !autopilot.0;
+        }
+    }
+}
+
+fn is_valid_move(pos: IVec2, body_positions: &[IVec2]) -> bool {
+    pos.x >= 0
+        && pos.x < GRID_WIDTH as i32
+        && pos.y >= 0
+        && pos.y < GRID_HEIGHT as i32
+        && !body_positions.contains(&pos)
+}
+
 fn manhattan_distance(a: IVec2, b: IVec2) -> i32 {
     (a.x - b.x).abs() + (a.y - b.y).abs()
+}
+
+fn setup_autopilot_button(mut cmd: Commands) {
+    cmd.spawn(ButtonBundle {
+        style: Style {
+            flex_basis: Val::Px(150.0),
+            flex_shrink: 0.,
+            position_type: PositionType::Absolute,
+            left: Val::Px(10.0),
+            bottom: Val::Px(10.0),
+            border: UiRect::all(Val::Px(2.0)),
+            ..default()
+        },
+        background_color: Color::NONE.into(),
+        border_color: Color::rgb(1.0, 1.0, 1.0).into(),
+        ..default()
+    })
+    .with_children(|parent| {
+        parent
+            .spawn(TextBundle::from_section(
+                "Autopilot: Off",
+                TextStyle {
+                    font_size: 40.0,
+                    color: Color::rgb(1.0, 1.0, 1.0),
+                    ..default()
+                },
+            ))
+            .insert(AutopilotButtonText);
+    });
+}
+
+fn toggle_autopilot(mut autopilot: ResMut<Autopilot>, input: Res<ButtonInput<KeyCode>>) {
+    if input.just_pressed(KeyCode::Space) {
+        autopilot.0 = !autopilot.0;
+    }
+}
+
+fn update_autopilot_button(
+    autopilot: Res<Autopilot>,
+    mut query: Query<&mut Text, With<AutopilotButtonText>>,
+) {
+    let mut text = query.single_mut();
+    if autopilot.0 {
+        text.sections[0].value = "Autopilot: On".to_string();
+    } else {
+        text.sections[0].value = "Autopilot: Off".to_string();
+    }
 }
