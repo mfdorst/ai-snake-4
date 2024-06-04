@@ -2,7 +2,7 @@ use crate::{
     constants::*,
     food::Food,
     input::{CurrentDirection, NextDirection},
-    snake::SnakeHead,
+    snake::{SnakeHead, SnakeMoveEvent},
 };
 use bevy::prelude::*;
 use std::{
@@ -17,11 +17,14 @@ impl Plugin for AutopilotPlugin {
         app.add_systems(Startup, setup_autopilot_button)
             .add_systems(Update, update_autopilot_button)
             .add_systems(Update, toggle_autopilot)
-            .add_systems(Update, autopilot_snake)
+            .add_systems(Update, autopilot_snake.in_set(AutopilotSet))
             .add_systems(Update, handle_button_click)
             .insert_resource(Autopilot(false));
     }
 }
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AutopilotSet;
 
 #[derive(Resource)]
 pub struct Autopilot(pub bool);
@@ -125,48 +128,51 @@ fn autopilot_snake(
     food_q: Query<&Transform, With<Food>>,
     head_transform_q: Query<&Transform, With<SnakeHead>>,
     body_q: Query<&Transform, Without<Food>>,
+    mut ev_move: EventReader<SnakeMoveEvent>,
 ) {
     if autopilot.0 {
-        let (mut next_direction, _) = q.single_mut();
-        let head_transform = head_transform_q.single();
-        let food_transform = food_q.single();
+        for _ in ev_move.read() {
+            let (mut next_direction, _) = q.single_mut();
+            let head_transform = head_transform_q.single();
+            let food_transform = food_q.single();
 
-        let start = head_transform.translation.xy().as_ivec2();
-        let end = food_transform.translation.xy().as_ivec2();
+            let start = head_transform.translation.xy().as_ivec2();
+            let end = food_transform.translation.xy().as_ivec2();
 
-        let body_positions: Vec<_> = body_q
-            .iter()
-            .map(|t| t.translation.xy().as_ivec2())
-            .collect();
+            let body_positions: Vec<_> = body_q
+                .iter()
+                .map(|t| t.translation.xy().as_ivec2())
+                .collect();
 
-        if let Some(&next_pos) = find_path(start, end, &body_positions).get(1) {
-            next_direction.0 = Direction2d::new_unchecked((next_pos - start).as_vec2());
-        } else {
-            // No path found – survival mode
+            if let Some(&next_pos) = find_path(start, end, &body_positions).get(1) {
+                next_direction.0 = Direction2d::new_unchecked((next_pos - start).as_vec2());
+            } else {
+                // No path found – survival mode
 
-            let mut largest_area = 0;
-            let mut best_direction = None;
+                let mut largest_area = 0;
+                let mut best_direction = None;
 
-            for direction in [
-                Direction2d::X,
-                Direction2d::NEG_X,
-                Direction2d::Y,
-                Direction2d::NEG_Y,
-            ] {
-                let next_head_pos = head_transform.translation + direction.extend(0.);
-                let next_pos = next_head_pos.xy().as_ivec2();
+                for direction in [
+                    Direction2d::X,
+                    Direction2d::NEG_X,
+                    Direction2d::Y,
+                    Direction2d::NEG_Y,
+                ] {
+                    let next_head_pos = head_transform.translation + direction.extend(0.);
+                    let next_pos = next_head_pos.xy().as_ivec2();
 
-                if is_valid_move(next_pos, &body_positions) {
-                    let area = flood_fill(next_pos, &body_positions);
-                    if area > largest_area {
-                        largest_area = area;
-                        best_direction = Some(direction);
+                    if is_valid_move(next_pos, &body_positions) {
+                        let area = flood_fill(next_pos, &body_positions);
+                        if area > largest_area {
+                            largest_area = area;
+                            best_direction = Some(direction);
+                        }
                     }
                 }
-            }
 
-            if let Some(direction) = best_direction {
-                next_direction.0 = direction;
+                if let Some(direction) = best_direction {
+                    next_direction.0 = direction;
+                }
             }
         }
     }

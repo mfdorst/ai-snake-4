@@ -1,3 +1,4 @@
+use autopilot::{AutopilotPlugin, AutopilotSet};
 use bevy::prelude::*;
 use camera::CameraPlugin;
 use collision::{CollisionPlugin, CollisionSet};
@@ -15,8 +16,6 @@ mod input;
 mod score;
 mod snake;
 
-use autopilot::AutopilotPlugin;
-
 fn main() {
     App::new()
         .add_plugins((
@@ -31,7 +30,14 @@ fn main() {
         ))
         .configure_sets(
             Update,
-            (SnakeMoveTimerTickSet, CollisionSet, EatSet, SnakeMoveSet).chain(),
+            (
+                SnakeMoveTimerTickSet,
+                AutopilotSet,
+                CollisionSet,
+                EatSet,
+                SnakeMoveSet,
+            )
+                .chain(),
         )
         .run();
 }
