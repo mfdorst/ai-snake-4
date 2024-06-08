@@ -1,22 +1,24 @@
-use crate::snake::SnakeHead;
 use bevy::prelude::*;
 
 pub struct InputPlugin;
 
-#[derive(Component)]
+#[derive(Resource)]
 pub struct CurrentDirection(pub Direction2d);
 
-#[derive(Component)]
+#[derive(Resource)]
 pub struct NextDirection(pub Direction2d);
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, change_head_direction);
+        app.add_systems(Update, change_head_direction)
+            .insert_resource(CurrentDirection(Direction2d::X))
+            .insert_resource(NextDirection(Direction2d::X));
     }
 }
 
 fn change_head_direction(
-    mut q: Query<(&CurrentDirection, &mut NextDirection), With<SnakeHead>>,
+    current_direction: Res<CurrentDirection>,
+    mut next_direction: ResMut<NextDirection>,
     input: Res<ButtonInput<KeyCode>>,
 ) {
     let desired = if input.just_pressed(KeyCode::KeyW) {
@@ -31,10 +33,8 @@ fn change_head_direction(
         return;
     };
 
-    let (current, mut next) = q.single_mut();
-
     // Don't allow 180's
-    if desired != -current.0 {
-        next.0 = desired;
+    if desired != -current_direction.0 {
+        next_direction.0 = desired;
     }
 }

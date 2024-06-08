@@ -50,11 +50,12 @@ impl Plugin for SnakePlugin {
 }
 
 fn move_snake(
-    mut direction_q: Query<(&mut CurrentDirection, &NextDirection), With<SnakeHead>>,
     mut transform_q: Query<&mut Transform>,
     mut ev_move: EventReader<SnakeMoveEvent>,
     body: Res<SnakeBody>,
     is_dead: Res<IsDead>,
+    mut current_direction: ResMut<CurrentDirection>,
+    next_direction: Res<NextDirection>,
 ) {
     if is_dead.0 {
         return;
@@ -68,7 +69,6 @@ fn move_snake(
         }
 
         let mut head_transform = transform_q.get_mut(body.0[0]).unwrap();
-        let (mut current_direction, next_direction) = direction_q.single_mut();
         current_direction.0 = next_direction.0;
         head_transform.translation += current_direction.0.extend(0.);
     }
@@ -94,8 +94,6 @@ fn spawn_snake(mut cmd: Commands) {
                 ..default()
             },
             SnakeHead,
-            CurrentDirection(Direction2d::X),
-            NextDirection(Direction2d::X),
         ))
         .id(),
     );
@@ -109,6 +107,8 @@ fn spawn_snake(mut cmd: Commands) {
             .id(),
         );
     }
+    cmd.insert_resource(CurrentDirection(Direction2d::X));
+    cmd.insert_resource(NextDirection(Direction2d::X));
     cmd.insert_resource(SnakeBody(body));
 }
 
