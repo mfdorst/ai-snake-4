@@ -2,7 +2,7 @@ use crate::{
     constants::*,
     food::Food,
     input::NextDirection,
-    snake::{SnakeHead, SnakeMoveEvent},
+    snake::{SnakeBody, SnakeMoveEvent},
 };
 use bevy::prelude::*;
 use std::{
@@ -80,7 +80,7 @@ fn autopilot_snake(
     autopilot: Res<Autopilot>,
     body_q: Query<&Transform, Without<Food>>,
     food_q: Query<&Transform, With<Food>>,
-    head_q: Query<&Transform, With<SnakeHead>>,
+    body: Res<SnakeBody>,
     mut ev_move: EventReader<SnakeMoveEvent>,
     mut next_direction: ResMut<NextDirection>,
 ) {
@@ -90,7 +90,7 @@ fn autopilot_snake(
 
     ev_move.clear();
 
-    let head_transform = head_q.single();
+    let head_transform = body_q.get(body.0[0]).unwrap();
     let food_transform = food_q.single();
 
     let start = head_transform.translation.xy().as_ivec2();

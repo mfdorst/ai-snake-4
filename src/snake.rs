@@ -6,9 +6,6 @@ use bevy::prelude::*;
 
 pub struct SnakePlugin;
 
-#[derive(Component)]
-pub struct SnakeHead;
-
 #[derive(Resource)]
 pub struct IsDead(pub bool);
 
@@ -86,18 +83,7 @@ fn spawn_snake(mut cmd: Commands) {
 
     let mut body = vec![];
 
-    body.push(
-        cmd.spawn((
-            SpriteBundle {
-                sprite: sprite.clone(),
-                transform: transforms[0],
-                ..default()
-            },
-            SnakeHead,
-        ))
-        .id(),
-    );
-    for transform in transforms.into_iter().skip(1) {
+    for transform in transforms {
         body.push(
             cmd.spawn(SpriteBundle {
                 sprite: sprite.clone(),

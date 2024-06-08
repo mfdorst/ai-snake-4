@@ -2,7 +2,7 @@ use crate::{
     constants::*,
     food::{EatEvent, Food},
     input::NextDirection,
-    snake::{IsDead, SnakeBody, SnakeHead, SnakeMoveEvent},
+    snake::{IsDead, SnakeBody, SnakeMoveEvent},
 };
 use bevy::prelude::*;
 
@@ -49,11 +49,12 @@ fn check_food_collision(
     mut ev_eat: EventWriter<EatEvent>,
     mut ev_move: EventReader<SnakeMoveEvent>,
     food_q: Query<&Transform, With<Food>>,
-    head_transform_q: Query<&Transform, With<SnakeHead>>,
+    body: Res<SnakeBody>,
+    transform_q: Query<&Transform>,
     next_direction: Res<NextDirection>,
 ) {
     for _ in ev_move.read() {
-        let head_transform = head_transform_q.single();
+        let head_transform = transform_q.get(body.0[0]).unwrap();
         let next_head_pos = head_transform.translation + next_direction.0.extend(0.);
 
         for food_transform in &food_q {
@@ -67,12 +68,13 @@ fn check_food_collision(
 fn check_wall_collision(
     mut ev_move: EventReader<SnakeMoveEvent>,
     mut is_dead: ResMut<IsDead>,
-    q: Query<&Transform, With<SnakeHead>>,
+    body: Res<SnakeBody>,
+    transform_q: Query<&Transform>,
     next_direction: Res<NextDirection>,
 ) {
     for _ in ev_move.read() {
-        let transform = q.single();
-        let t = transform.translation + next_direction.0.extend(0.);
+        let head_transform = transform_q.get(body.0[0]).unwrap();
+        let t = head_transform.translation + next_direction.0.extend(0.);
 
         if t.x < 0. || t.x >= GRID_WIDTH || t.y < 0. || t.y >= GRID_HEIGHT {
             is_dead.0 = true;
