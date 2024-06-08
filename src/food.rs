@@ -32,22 +32,25 @@ impl Plugin for FoodPlugin {
 }
 
 fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventReader<EatEvent>) {
-    for _ in ev_eat.read() {
-        let new_segment = cmd
-            .spawn(SpriteBundle {
-                sprite: Sprite {
-                    color: Color::WHITE,
-                    custom_size: Some(Vec2::ONE),
-                    ..default()
-                },
-                // Make new segment invisible by spawning it behind the play area
-                transform: Transform::from_xyz(0., 0., -2.),
-                ..default()
-            })
-            .id();
-
-        body.0.push_back(new_segment);
+    if ev_eat.is_empty() {
+        return;
     }
+    ev_eat.clear();
+
+    let new_segment = cmd
+        .spawn(SpriteBundle {
+            sprite: Sprite {
+                color: Color::WHITE,
+                custom_size: Some(Vec2::ONE),
+                ..default()
+            },
+            // Make new segment invisible by spawning it behind the play area
+            transform: Transform::from_xyz(0., 0., -2.),
+            ..default()
+        })
+        .id();
+
+    body.0.push_back(new_segment);
 }
 
 fn respawn_food(
@@ -99,8 +102,11 @@ fn speed_up_snake(
     mut timer: ResMut<SnakeMoveTimer>,
     mut ev_eat: EventReader<EatEvent>,
 ) {
-    for _ in ev_eat.read() {
-        speed.0 *= 1.05;
-        timer.0.set_duration(Duration::from_secs_f32(1. / speed.0));
+    if ev_eat.is_empty() {
+        return;
     }
+    ev_eat.clear();
+
+    speed.0 *= 1.05;
+    timer.0.set_duration(Duration::from_secs_f32(1. / speed.0));
 }

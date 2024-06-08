@@ -39,10 +39,13 @@ fn setup_score_ui(mut cmd: Commands) {
 }
 
 fn update_score_ui(mut ev_eat: EventReader<EatEvent>, mut q: Query<(&mut Text, &mut Score)>) {
-    for _ in ev_eat.read() {
-        for (mut text, mut score) in &mut q {
-            score.0 += 1;
-            text.sections[1].value = score.0.to_string();
-        }
+    if ev_eat.is_empty() {
+        return;
+    }
+    ev_eat.clear();
+
+    for (mut text, mut score) in &mut q {
+        score.0 += 1;
+        text.sections[1].value = score.0.to_string();
     }
 }

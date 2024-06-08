@@ -55,21 +55,21 @@ fn move_snake(
     mut current_direction: ResMut<CurrentDirection>,
     next_direction: Res<NextDirection>,
 ) {
-    if is_dead.0 {
+    if is_dead.0 || ev_move.is_empty() {
         return;
     }
-    for _ in ev_move.read() {
-        current_direction.0 = next_direction.0;
+    ev_move.clear();
 
-        let prev_head_transform = transform_q.get_mut(body.0[0]).unwrap();
-        let new_head_pos = prev_head_transform.translation + next_direction.0.extend(0.);
+    current_direction.0 = next_direction.0;
 
-        let tail = body.0.pop_back().unwrap();
-        body.0.push_front(tail);
+    let prev_head_transform = transform_q.get_mut(body.0[0]).unwrap();
+    let new_head_pos = prev_head_transform.translation + next_direction.0.extend(0.);
 
-        let mut new_head_transform = transform_q.get_mut(body.0[0]).unwrap();
-        new_head_transform.translation = new_head_pos;
-    }
+    let tail = body.0.pop_back().unwrap();
+    body.0.push_front(tail);
+
+    let mut new_head_transform = transform_q.get_mut(body.0[0]).unwrap();
+    new_head_transform.translation = new_head_pos;
 }
 
 fn spawn_snake(mut cmd: Commands) {
