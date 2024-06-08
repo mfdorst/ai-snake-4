@@ -3,6 +3,7 @@ use crate::{
     input::{CurrentDirection, NextDirection},
 };
 use bevy::prelude::*;
+use std::collections::VecDeque;
 
 pub struct SnakePlugin;
 
@@ -10,7 +11,7 @@ pub struct SnakePlugin;
 pub struct IsDead(pub bool);
 
 #[derive(Resource)]
-pub struct SnakeBody(pub Vec<Entity>);
+pub struct SnakeBody(pub VecDeque<Entity>);
 
 #[derive(Resource)]
 pub struct SnakeMoveTimer(pub Timer);
@@ -49,7 +50,7 @@ impl Plugin for SnakePlugin {
 fn move_snake(
     mut transform_q: Query<&mut Transform>,
     mut ev_move: EventReader<SnakeMoveEvent>,
-    body: Res<SnakeBody>,
+    mut body: ResMut<SnakeBody>,
     is_dead: Res<IsDead>,
     mut current_direction: ResMut<CurrentDirection>,
     next_direction: Res<NextDirection>,
@@ -58,16 +59,16 @@ fn move_snake(
         return;
     }
     for _ in ev_move.read() {
-        let body_iter = body.0.iter().rev().zip(body.0.iter().rev().skip(1));
-        for (&current, &next) in body_iter {
-            let next_transform = *transform_q.get(next).unwrap();
-            let mut current_transform = transform_q.get_mut(current).unwrap();
-            *current_transform = next_transform;
-        }
-
-        let mut head_transform = transform_q.get_mut(body.0[0]).unwrap();
         current_direction.0 = next_direction.0;
-        head_transform.translation += current_direction.0.extend(0.);
+
+        let prev_head_transform = transform_q.get_mut(body.0[0]).unwrap();
+        let new_head_pos = prev_head_transform.translation + next_direction.0.extend(0.);
+
+        let tail = body.0.pop_back().unwrap();
+        body.0.push_front(tail);
+
+        let mut new_head_transform = transform_q.get_mut(body.0[0]).unwrap();
+        new_head_transform.translation = new_head_pos;
     }
 }
 
@@ -81,10 +82,10 @@ fn spawn_snake(mut cmd: Commands) {
         .map(|i| Transform::from_xyz(GRID_WIDTH / 2. - i as f32, GRID_HEIGHT / 2., 0.))
         .collect();
 
-    let mut body = vec![];
+    let mut body = VecDeque::new();
 
     for transform in transforms {
-        body.push(
+        body.push_back(
             cmd.spawn(SpriteBundle {
                 sprite: sprite.clone(),
                 transform,

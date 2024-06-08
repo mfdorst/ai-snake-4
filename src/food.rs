@@ -46,7 +46,7 @@ fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventR
             })
             .id();
 
-        body.0.push(new_segment);
+        body.0.push_back(new_segment);
     }
 }
 
