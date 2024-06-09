@@ -1,8 +1,8 @@
 use crate::{
     constants::*,
-    snake::{SetupSnakeSet, SnakeBody, SnakeMoveTimer},
+    snake::{SetupSnakeSet, SnakeBody, SnakeMaterial, SnakeMoveTimer, StraightMesh},
 };
-use bevy::{prelude::*, utils::Duration};
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::Duration};
 use rand::Rng;
 
 pub struct FoodPlugin;
@@ -31,19 +31,22 @@ impl Plugin for FoodPlugin {
     }
 }
 
-fn grow_snake(mut cmd: Commands, mut body: ResMut<SnakeBody>, mut ev_eat: EventReader<EatEvent>) {
+fn grow_snake(
+    mut cmd: Commands,
+    mut body: ResMut<SnakeBody>,
+    mut ev_eat: EventReader<EatEvent>,
+    straight_mesh: Res<StraightMesh>,
+    snake_material: Res<SnakeMaterial>,
+) {
     if ev_eat.is_empty() {
         return;
     }
     ev_eat.clear();
 
     let new_segment = cmd
-        .spawn(SpriteBundle {
-            sprite: Sprite {
-                color: Color::WHITE,
-                custom_size: Some(Vec2::ONE),
-                ..default()
-            },
+        .spawn(MaterialMesh2dBundle {
+            mesh: straight_mesh.0.clone().into(),
+            material: snake_material.0.clone(),
             // Make new segment invisible by spawning it behind the play area
             transform: Transform::from_xyz(0., 0., -2.),
             ..default()
