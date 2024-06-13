@@ -42,6 +42,9 @@ pub struct SnakeMoveTimerTickSet;
 struct CornerMesh(Handle<Mesh>);
 
 #[derive(Resource)]
+struct EndMesh(Handle<Mesh>);
+
+#[derive(Resource)]
 pub struct StraightMesh(pub Handle<Mesh>);
 
 #[derive(Resource)]
@@ -66,12 +69,52 @@ impl Plugin for SnakePlugin {
     }
 }
 
+fn get_corner_rotation(direction_in: Direction2d, direction_out: Direction2d) -> Quat {
+    let up = Direction2d::Y;
+    let down = Direction2d::NEG_Y;
+    let left = Direction2d::NEG_X;
+    let right = Direction2d::X;
+
+    let directions = (direction_in, direction_out);
+
+    let rotation = if directions == (up, left) || directions == (right, down) {
+        0.
+    } else if directions == (down, left) || directions == (right, up) {
+        3. * FRAC_PI_2
+    } else if directions == (down, right) || directions == (left, up) {
+        PI
+    } else if directions == (up, right) || directions == (left, down) {
+        FRAC_PI_2
+    } else {
+        panic!("Invalid turn: {direction_in:?} -> {direction_out:?}");
+    };
+    Quat::from_rotation_z(rotation)
+}
+
+fn get_rotation(direction: Vec2) -> Quat {
+    let rotation = if direction.x == 0.0 {
+        if direction.y > 0.0 {
+            FRAC_PI_2
+        } else {
+            -FRAC_PI_2
+        }
+    } else {
+        if direction.x > 0.0 {
+            0.0
+        } else {
+            PI
+        }
+    };
+    Quat::from_rotation_z(rotation)
+}
+
 fn move_snake(
     mut mesh_q: Query<&mut Mesh2dHandle>,
     mut transform_q: Query<&mut Transform>,
     mut ev_move: EventReader<SnakeMoveEvent>,
     mut body: ResMut<SnakeBody>,
     corner_mesh: Res<CornerMesh>,
+    end_mesh: Res<EndMesh>,
     mut current_direction: ResMut<CurrentDirection>,
     is_dead: Res<IsDead>,
     next_direction: Res<NextDirection>,
@@ -87,29 +130,31 @@ fn move_snake(
 
     let new_head = body.0[0];
     let old_head = body.0[1];
+    let new_tail = body.0[body.0.len() - 1];
+    let old_tail = body.0[body.0.len() - 2];
 
-    *transform_q.get_mut(new_head).unwrap() = {
-        let translation =
-            transform_q.get(old_head).unwrap().translation + next_direction.0.extend(0.);
-        let rotation = if next_direction.0.x == 0.0 {
-            FRAC_PI_2
-        } else {
-            0.0
-        };
-        Transform {
-            translation,
-            rotation: Quat::from_rotation_z(rotation),
-            ..default()
-        }
+    *transform_q.get_mut(new_head).unwrap() = Transform {
+        translation: transform_q.get(old_head).unwrap().translation + next_direction.0.extend(0.),
+        rotation: get_rotation(*next_direction.0),
+        ..default()
     };
-    *mesh_q.get_mut(new_head).unwrap() = straight_mesh.0.clone().into();
 
-    // If the direction changed, make the old head into a corner
+    // Set the old head's mesh to either corner or straight
     if current_direction.0 != next_direction.0 {
         *mesh_q.get_mut(old_head).unwrap() = corner_mesh.0.clone().into();
         transform_q.get_mut(old_head).unwrap().rotation =
             get_corner_rotation(current_direction.0, next_direction.0);
+    } else {
+        *mesh_q.get_mut(old_head).unwrap() = straight_mesh.0.clone().into();
     }
+    transform_q.get_mut(new_tail).unwrap().rotation = {
+        let new_tail_pos = transform_q.get(new_tail).unwrap().translation;
+        let old_tail_pos = transform_q.get(old_tail).unwrap().translation;
+        let direction = new_tail_pos - old_tail_pos;
+        get_rotation(direction.truncate())
+    };
+    *mesh_q.get_mut(new_tail).unwrap() = end_mesh.0.clone().into();
+
     current_direction.0 = next_direction.0;
 }
 
@@ -143,6 +188,22 @@ fn spawn_snake(
     ]));
     let corner_mesh_handle = meshes.add(corner_mesh);
 
+    let end_mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    )
+    .with_inserted_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        vec![
+            [-0.5, 0.4, 0.],
+            [0.4, 0.4, 0.],
+            [-0.5, -0.4, 0.],
+            [0.4, -0.4, 0.],
+        ],
+    )
+    .with_inserted_indices(Indices::U32(vec![0, 1, 2, 2, 1, 3]));
+    let end_mesh_handle = meshes.add(end_mesh);
+
     let material = materials.add(ColorMaterial::default());
 
     let transforms: Vec<_> = (0..SNAKE_LENGTH)
@@ -151,12 +212,28 @@ fn spawn_snake(
 
     let mut body = VecDeque::new();
 
-    for transform in transforms {
+    for (i, transform) in transforms.into_iter().enumerate() {
+        let mesh = if i == 0 {
+            end_mesh_handle.clone().into()
+        } else if i == SNAKE_LENGTH - 1 {
+            end_mesh_handle.clone().into()
+        } else {
+            straight_mesh_handle.clone().into()
+        };
+        let rotation = if i == SNAKE_LENGTH - 1 {
+            Quat::from_rotation_z(PI)
+        } else {
+            Quat::default()
+        };
         body.push_back(
             cmd.spawn(MaterialMesh2dBundle {
-                mesh: straight_mesh_handle.clone().into(),
+                mesh,
                 material: material.clone(),
-                transform,
+                transform: Transform {
+                    translation: transform.translation,
+                    rotation,
+                    ..default()
+                },
                 ..default()
             })
             .id(),
@@ -167,29 +244,8 @@ fn spawn_snake(
     cmd.insert_resource(SnakeBody(body));
     cmd.insert_resource(StraightMesh(straight_mesh_handle));
     cmd.insert_resource(CornerMesh(corner_mesh_handle));
+    cmd.insert_resource(EndMesh(end_mesh_handle));
     cmd.insert_resource(SnakeMaterial(material));
-}
-
-fn get_corner_rotation(direction_in: Direction2d, direction_out: Direction2d) -> Quat {
-    let up = Direction2d::Y;
-    let down = Direction2d::NEG_Y;
-    let left = Direction2d::NEG_X;
-    let right = Direction2d::X;
-
-    let directions = (direction_in, direction_out);
-
-    let rotation = if directions == (up, left) || directions == (right, down) {
-        0.
-    } else if directions == (down, left) || directions == (right, up) {
-        3. * FRAC_PI_2
-    } else if directions == (down, right) || directions == (left, up) {
-        PI
-    } else if directions == (up, right) || directions == (left, down) {
-        FRAC_PI_2
-    } else {
-        panic!("Invalid turn: {direction_in:?} -> {direction_out:?}");
-    };
-    Quat::from_rotation_z(rotation)
 }
 
 fn tick_move_timer(
