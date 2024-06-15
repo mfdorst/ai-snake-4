@@ -237,11 +237,12 @@ fn manhattan_distance(a: IVec2, b: IVec2) -> i32 {
 fn setup_autopilot_button(mut cmd: Commands) {
     cmd.spawn(ButtonBundle {
         style: Style {
-            flex_basis: Val::Px(150.0),
+            flex_basis: Val::Px(150.),
             flex_shrink: 0.,
             position_type: PositionType::Absolute,
-            left: Val::Px(10.0),
-            bottom: Val::Px(10.0),
+            left: Val::Px(10.),
+            bottom: Val::Px(10.),
+            padding: UiRect::all(Val::Px(5.)),
             ..default()
         },
         background_color: Color::rgba(0., 0., 0., 0.8).into(),
@@ -252,7 +253,7 @@ fn setup_autopilot_button(mut cmd: Commands) {
             .spawn(TextBundle::from_section(
                 "Autopilot: Off",
                 TextStyle {
-                    font_size: 40.0,
+                    font_size: 30.,
                     color: Color::WHITE,
                     ..default()
                 },
