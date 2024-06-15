@@ -27,11 +27,9 @@ fn setup_pause_button(mut cmd: Commands) {
             position_type: PositionType::Absolute,
             left: Val::Px(10.0),
             bottom: Val::Px(60.0),
-            border: UiRect::all(Val::Px(2.0)),
             ..default()
         },
-        background_color: Color::rgba(0., 0., 0., 0.2).into(),
-        border_color: Color::WHITE.into(),
+        background_color: Color::rgba(0., 0., 0., 0.8).into(),
         ..default()
     })
     .with_children(|parent| {

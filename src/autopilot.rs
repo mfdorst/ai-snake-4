@@ -242,11 +242,9 @@ fn setup_autopilot_button(mut cmd: Commands) {
             position_type: PositionType::Absolute,
             left: Val::Px(10.0),
             bottom: Val::Px(10.0),
-            border: UiRect::all(Val::Px(2.0)),
             ..default()
         },
-        background_color: Color::NONE.into(),
-        border_color: Color::rgb(1.0, 1.0, 1.0).into(),
+        background_color: Color::rgba(0., 0., 0., 0.8).into(),
         ..default()
     })
     .with_children(|parent| {
@@ -255,7 +253,7 @@ fn setup_autopilot_button(mut cmd: Commands) {
                 "Autopilot: Off",
                 TextStyle {
                     font_size: 40.0,
-                    color: Color::rgb(1.0, 1.0, 1.0),
+                    color: Color::WHITE,
                     ..default()
                 },
             ))
