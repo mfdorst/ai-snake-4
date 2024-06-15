@@ -264,7 +264,7 @@ fn setup_autopilot_button(mut cmd: Commands) {
 }
 
 fn toggle_autopilot(mut autopilot: ResMut<Autopilot>, input: Res<ButtonInput<KeyCode>>) {
-    if input.just_pressed(KeyCode::Space) {
+    if input.just_pressed(KeyCode::KeyP) {
         autopilot.0 = !autopilot.0;
     }
 }

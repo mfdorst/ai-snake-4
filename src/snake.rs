@@ -1,6 +1,7 @@
 use crate::{
     constants::*,
     input::{CurrentDirection, NextDirection},
+    pause::IsPaused,
 };
 use bevy::{
     prelude::*,
@@ -252,9 +253,10 @@ fn tick_move_timer(
     mut timer: ResMut<SnakeMoveTimer>,
     mut ev_move: EventWriter<SnakeMoveEvent>,
     is_dead: Res<IsDead>,
+    is_paused: Res<IsPaused>,
     time: Res<Time>,
 ) {
-    if !is_dead.0 && timer.0.tick(time.delta()).just_finished() {
+    if !is_paused.0 && !is_dead.0 && timer.0.tick(time.delta()).just_finished() {
         ev_move.send(SnakeMoveEvent);
     }
 }
