@@ -27,7 +27,7 @@ fn setup_score_ui(mut cmd: Commands) {
             padding: UiRect::all(Val::Px(5.)),
             ..default()
         },
-        background_color: Color::rgba(0.0, 0.0, 0.0, 0.8).into(),
+        background_color: Srgba::BLACK.with_alpha(0.8).into(),
         ..default()
     })
     .with_children(|parent| {

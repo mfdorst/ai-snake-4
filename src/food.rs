@@ -90,7 +90,7 @@ fn spawn_food(cmd: &mut Commands, transform_q: Query<&Transform, Without<Food>>)
 
     cmd.spawn(SpriteBundle {
         sprite: Sprite {
-            color: Color::RED,
+            color: Srgba::RED.into(),
             custom_size: Some(Vec2::new(0.8, 0.8)),
             ..default()
         },

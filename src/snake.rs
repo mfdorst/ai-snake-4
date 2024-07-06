@@ -70,11 +70,11 @@ impl Plugin for SnakePlugin {
     }
 }
 
-fn get_corner_rotation(direction_in: Direction2d, direction_out: Direction2d) -> Quat {
-    let up = Direction2d::Y;
-    let down = Direction2d::NEG_Y;
-    let left = Direction2d::NEG_X;
-    let right = Direction2d::X;
+fn get_corner_rotation(direction_in: Dir2, direction_out: Dir2) -> Quat {
+    let up = Dir2::Y;
+    let down = Dir2::NEG_Y;
+    let left = Dir2::NEG_X;
+    let right = Dir2::X;
 
     let directions = (direction_in, direction_out);
 
@@ -240,8 +240,8 @@ fn spawn_snake(
             .id(),
         );
     }
-    cmd.insert_resource(CurrentDirection(Direction2d::X));
-    cmd.insert_resource(NextDirection(Direction2d::X));
+    cmd.insert_resource(CurrentDirection(Dir2::X));
+    cmd.insert_resource(NextDirection(Dir2::X));
     cmd.insert_resource(SnakeBody(body));
     cmd.insert_resource(StraightMesh(straight_mesh_handle));
     cmd.insert_resource(CornerMesh(corner_mesh_handle));

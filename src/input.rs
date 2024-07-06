@@ -3,16 +3,16 @@ use bevy::prelude::*;
 pub struct InputPlugin;
 
 #[derive(Resource)]
-pub struct CurrentDirection(pub Direction2d);
+pub struct CurrentDirection(pub Dir2);
 
 #[derive(Resource)]
-pub struct NextDirection(pub Direction2d);
+pub struct NextDirection(pub Dir2);
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, change_head_direction)
-            .insert_resource(CurrentDirection(Direction2d::X))
-            .insert_resource(NextDirection(Direction2d::X));
+            .insert_resource(CurrentDirection(Dir2::X))
+            .insert_resource(NextDirection(Dir2::X));
     }
 }
 
@@ -22,13 +22,13 @@ fn change_head_direction(
     input: Res<ButtonInput<KeyCode>>,
 ) {
     let desired = if input.just_pressed(KeyCode::KeyW) {
-        Direction2d::Y
+        Dir2::Y
     } else if input.just_pressed(KeyCode::KeyA) {
-        Direction2d::NEG_X
+        Dir2::NEG_X
     } else if input.just_pressed(KeyCode::KeyS) {
-        Direction2d::NEG_Y
+        Dir2::NEG_Y
     } else if input.just_pressed(KeyCode::KeyD) {
-        Direction2d::X
+        Dir2::X
     } else {
         return;
     };

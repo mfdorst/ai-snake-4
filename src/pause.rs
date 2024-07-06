@@ -30,7 +30,7 @@ fn setup_pause_button(mut cmd: Commands) {
             padding: UiRect::all(Val::Px(5.)),
             ..default()
         },
-        background_color: Color::rgba(0., 0., 0., 0.8).into(),
+        background_color: Srgba::BLACK.with_alpha(0.8).into(),
         ..default()
     })
     .with_children(|parent| {
@@ -39,7 +39,7 @@ fn setup_pause_button(mut cmd: Commands) {
                 "Pause",
                 TextStyle {
                     font_size: 30.,
-                    color: Color::WHITE,
+                    color: Srgba::WHITE.into(),
                     ..default()
                 },
             ))

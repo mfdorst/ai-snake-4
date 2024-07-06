@@ -18,7 +18,7 @@ fn setup_camera(mut cmd: Commands) {
 }
 
 fn setup_clear_color(mut cmd: Commands) {
-    cmd.insert_resource(ClearColor(Color::GRAY));
+    cmd.insert_resource(ClearColor(Srgba::gray(0.5).into()));
 }
 
 fn setup_play_area(mut cmd: Commands) {

@@ -69,12 +69,7 @@ impl PartialOrd for Node {
     }
 }
 
-const CARDINAL_DIRECTIONS: [Direction2d; 4] = [
-    Direction2d::X,
-    Direction2d::NEG_X,
-    Direction2d::Y,
-    Direction2d::NEG_Y,
-];
+const CARDINAL_DIRECTIONS: [Dir2; 4] = [Dir2::X, Dir2::NEG_X, Dir2::Y, Dir2::NEG_Y];
 
 fn autopilot_snake(
     autopilot: Res<Autopilot>,
@@ -102,13 +97,13 @@ fn autopilot_snake(
         .collect();
 
     if let Some(&next_pos) = find_path(start, end, &body_positions).get(1) {
-        next_direction.0 = Direction2d::new_unchecked((next_pos - start).as_vec2());
+        next_direction.0 = Dir2::new_unchecked((next_pos - start).as_vec2());
     } else if let Some(direction) = survival_mode(start, &body_positions) {
         next_direction.0 = direction;
     }
 }
 
-fn survival_mode(start: IVec2, body_positions: &[IVec2]) -> Option<Direction2d> {
+fn survival_mode(start: IVec2, body_positions: &[IVec2]) -> Option<Dir2> {
     let mut largest_area = 0;
     let mut best_direction = None;
 
@@ -245,7 +240,7 @@ fn setup_autopilot_button(mut cmd: Commands) {
             padding: UiRect::all(Val::Px(5.)),
             ..default()
         },
-        background_color: Color::rgba(0., 0., 0., 0.8).into(),
+        background_color: Srgba::BLACK.with_alpha(0.8).into(),
         ..default()
     })
     .with_children(|parent| {
@@ -254,7 +249,7 @@ fn setup_autopilot_button(mut cmd: Commands) {
                 "Autopilot: Off",
                 TextStyle {
                     font_size: 30.,
-                    color: Color::WHITE,
+                    color: Srgba::WHITE.into(),
                     ..default()
                 },
             ))
