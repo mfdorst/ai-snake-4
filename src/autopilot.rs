@@ -241,6 +241,7 @@ fn setup_autopilot_button(mut cmd: Commands) {
             ..default()
         },
         background_color: Srgba::BLACK.with_alpha(0.8).into(),
+        border_radius: BorderRadius::all(Val::Px(10.)),
         ..default()
     })
     .with_children(|parent| {
