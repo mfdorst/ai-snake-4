@@ -70,8 +70,8 @@ fn update_pause_button(
 ) {
     let mut text = query.single_mut();
     if is_paused.0 {
-        text.sections[0].value = "Pause".to_string();
-    } else {
         text.sections[0].value = "Unpause".to_string();
+    } else {
+        text.sections[0].value = "Pause".to_string();
     }
 }
