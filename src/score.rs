@@ -31,12 +31,13 @@ fn setup_score_ui(mut cmd: Commands) {
         ..default()
     })
     .with_children(|parent| {
-        parent.spawn(TextBundle::from_sections([
-            TextSection::new("Score: ", text_style.clone()),
-            TextSection::new("0", text_style),
-        ]));
-    })
-    .insert(Score(0));
+        parent
+            .spawn(TextBundle::from_sections([
+                TextSection::new("Score: ", text_style.clone()),
+                TextSection::new("0", text_style),
+            ]))
+            .insert(Score(0));
+    });
 }
 
 fn update_score_ui(mut ev_eat: EventReader<EatEvent>, mut q: Query<(&mut Text, &mut Score)>) {
@@ -45,8 +46,7 @@ fn update_score_ui(mut ev_eat: EventReader<EatEvent>, mut q: Query<(&mut Text, &
     }
     ev_eat.clear();
 
-    for (mut text, mut score) in &mut q {
-        score.0 += 1;
-        text.sections[1].value = score.0.to_string();
-    }
+    let (mut text, mut score) = q.single_mut();
+    score.0 += 1;
+    text.sections[1].value = score.0.to_string();
 }
